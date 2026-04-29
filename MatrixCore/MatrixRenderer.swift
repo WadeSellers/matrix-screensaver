@@ -8,6 +8,7 @@ public final class MatrixRenderer: NSObject, MTKViewDelegate {
     public let device: MTLDevice
     private let commandQueue: MTLCommandQueue
     private let pipelineState: MTLRenderPipelineState
+    private let glyphAtlas: GlyphAtlas
 
     private var grid: GridLayout = GridLayout(drawableSize: CGSize(width: 1, height: 1))
     private var columnBuffer: MTLBuffer?
@@ -15,8 +16,10 @@ public final class MatrixRenderer: NSObject, MTKViewDelegate {
 
     public init?(device: MTLDevice) {
         guard let queue = device.makeCommandQueue() else { return nil }
+        guard let atlas = GlyphAtlas(device: device) else { return nil }
         self.device = device
         self.commandQueue = queue
+        self.glyphAtlas = atlas
 
         let bundle = Bundle(for: MatrixRenderer.self)
         guard let library = try? device.makeDefaultLibrary(bundle: bundle),
@@ -113,7 +116,9 @@ public final class MatrixRenderer: NSObject, MTKViewDelegate {
             viewportSize: SIMD2<Float>(
                 Float(grid.viewportSize.width),
                 Float(grid.viewportSize.height)
-            )
+            ),
+            glyphCount: UInt32(glyphAtlas.glyphCount),
+            cellsPerRow: UInt32(glyphAtlas.cellsPerRow)
         )
 
         encoder.setRenderPipelineState(pipelineState)
@@ -123,6 +128,7 @@ public final class MatrixRenderer: NSObject, MTKViewDelegate {
             index: 0
         )
         encoder.setFragmentBuffer(columnBuffer, offset: 0, index: 1)
+        encoder.setFragmentTexture(glyphAtlas.texture, index: 0)
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
         encoder.endEncoding()
         buffer.present(drawable)

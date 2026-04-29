@@ -24,16 +24,22 @@ public struct GridUniforms {
     public var cellSize: Float
     public var aspectFix: Float
     public var viewportSize: SIMD2<Float>
+    public var glyphCount: UInt32
+    public var cellsPerRow: UInt32
 
     public init(columnCount: UInt32,
                 rowCount: UInt32,
                 cellSize: Float,
                 aspectFix: Float,
-                viewportSize: SIMD2<Float>) {
+                viewportSize: SIMD2<Float>,
+                glyphCount: UInt32,
+                cellsPerRow: UInt32) {
         self.columnCount = columnCount
         self.rowCount = rowCount
         self.cellSize = cellSize
         self.aspectFix = aspectFix
         self.viewportSize = viewportSize
+        self.glyphCount = glyphCount
+        self.cellsPerRow = cellsPerRow
     }
 }

@@ -19,23 +19,35 @@ struct GridUniforms {
     float cellSize;
     float aspectFix;
     float2 viewportSize;
+    uint  glyphCount;
+    uint  cellsPerRow;
 };
 
 vertex VSOut vertex_fullscreen(uint vid [[vertex_id]]) {
-    // Fullscreen-triangle trick: 3 verts cover the whole NDC.
     float2 pos = float2((vid << 1) & 2, vid & 2);
     VSOut out;
     out.position = float4(pos * 2.0 - 1.0, 0.0, 1.0);
-    out.uv = pos; // 0..1, origin bottom-left
+    out.uv = pos;
     return out;
+}
+
+// Stable per-(col,row,bucket) hash. PCG-style scrambling.
+static uint hash3(uint a, uint b, uint c) {
+    a = (a ^ 61u) ^ (a >> 16);
+    a = a + (a << 3);
+    a = a ^ (a >> 4);
+    a = a * 0x27d4eb2du;
+    a = a ^ (a >> 15);
+    a = a ^ (b * 73856093u) ^ (c * 83492791u);
+    return a;
 }
 
 fragment float4 fragment_columns(
     VSOut in [[stage_in]],
     constant GridUniforms &grid [[buffer(0)]],
-    constant ColumnState *columns [[buffer(1)]]
+    constant ColumnState *columns [[buffer(1)]],
+    texture2d<float> glyphAtlas [[texture(0)]]
 ) {
-    // Flip Y so row 0 is the top of the screen.
     float pixelX = in.uv.x * grid.viewportSize.x;
     float pixelY = (1.0 - in.uv.y) * grid.viewportSize.y;
 
@@ -43,15 +55,33 @@ fragment float4 fragment_columns(
     uint row = uint(pixelY / grid.cellSize);
 
     if (col >= grid.columnCount || row >= grid.rowCount) {
-        return float4(0.0, 0.0, 0.0, 1.0);
+        return float4(0.0);
     }
 
     ColumnState s = columns[col];
 
-    // Step 3: solid green where the row has been "passed" by the head.
-    // Step 5 will replace this with a head highlight + trail-fade gradient.
-    if (float(row) <= s.headRow) {
-        return float4(0.0, 1.0, 0.4, 1.0);
+    // Cell hasn't been touched yet — leave black.
+    if (float(row) > s.headRow) {
+        return float4(0.0);
     }
-    return float4(0.0, 0.0, 0.0, 1.0);
+
+    // Glyph swap rule: bucket frameCounter into groups of 3 frames so the
+    // glyph holds for ~3 frames before potentially picking a new one.
+    uint frameBucket = s.frameCounter / 3u;
+    uint glyphIdx = hash3(col, row, s.seed ^ frameBucket) % grid.glyphCount;
+
+    uint atlasCol = glyphIdx % grid.cellsPerRow;
+    uint atlasRow = glyphIdx / grid.cellsPerRow;
+
+    float cellU = fract(pixelX / grid.cellSize);
+    float cellV = fract(pixelY / grid.cellSize);
+
+    float atlasU = (float(atlasCol) + cellU) / float(grid.cellsPerRow);
+    float atlasV = (float(atlasRow) + cellV) / float(grid.cellsPerRow);
+
+    constexpr sampler s_atlas(filter::linear, address::clamp_to_edge);
+    float alpha = glyphAtlas.sample(s_atlas, float2(atlasU, atlasV)).r;
+
+    // Step 4: flat green for now. Trail fade and head highlight in Step 5.
+    return float4(0.0, 1.0, 0.4, 1.0) * alpha;
 }
