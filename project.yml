@@ -66,3 +66,34 @@ targets:
         NSSupportsAutomaticTermination: false
         NSSupportsSuddenTermination: false
         NSPrincipalClass: NSApplication
+
+  MatrixSaver:
+    type: bundle
+    platform: macOS
+    sources:
+      - path: MatrixSaver
+    dependencies:
+      - target: MatrixCore
+        embed: true
+        codeSign: true
+      - sdk: ScreenSaver.framework
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.wadesellers.MatrixSaver
+        PRODUCT_NAME: MatrixSaver
+        WRAPPER_EXTENSION: saver
+        LD_RUNPATH_SEARCH_PATHS: "@executable_path/../Frameworks @loader_path/../Frameworks"
+        SKIP_INSTALL: NO
+        ENABLE_HARDENED_RUNTIME: NO
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: "0.1.0"
+        COMBINE_HIDPI_IMAGES: YES
+    info:
+      path: MatrixSaver/Info.plist
+      properties:
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        CFBundlePackageType: BNDL
+        NSPrincipalClass: MatrixSaverView
+        LSMinimumSystemVersion: "14.0"
+        NSHighResolutionCapable: true
