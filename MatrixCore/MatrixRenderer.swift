@@ -7,11 +7,13 @@ import simd
 public final class MatrixRenderer: NSObject, MTKViewDelegate {
     public let device: MTLDevice
     private let commandQueue: MTLCommandQueue
-    private let pipelineState: MTLRenderPipelineState
+    private let columnPipeline: MTLRenderPipelineState
     private let glyphAtlas: GlyphAtlas
+    private let bloomPipeline: BloomPipeline
 
     private var grid: GridLayout = GridLayout(drawableSize: CGSize(width: 1, height: 1))
     private var columnBuffer: MTLBuffer?
+    private var sceneTexture: MTLTexture?
     private var lastFrameTime: CFTimeInterval = CACurrentMediaTime()
 
     public init?(device: MTLDevice) {
@@ -24,19 +26,27 @@ public final class MatrixRenderer: NSObject, MTKViewDelegate {
         let bundle = Bundle(for: MatrixRenderer.self)
         guard let library = try? device.makeDefaultLibrary(bundle: bundle),
               let vertexFn = library.makeFunction(name: "vertex_fullscreen"),
-              let fragmentFn = library.makeFunction(name: "fragment_columns") else {
+              let columnFn = library.makeFunction(name: "fragment_columns") else {
             return nil
         }
 
         let descriptor = MTLRenderPipelineDescriptor()
         descriptor.vertexFunction = vertexFn
-        descriptor.fragmentFunction = fragmentFn
+        descriptor.fragmentFunction = columnFn
         descriptor.colorAttachments[0].pixelFormat = .bgra8Unorm_srgb
 
-        guard let pipeline = try? device.makeRenderPipelineState(descriptor: descriptor) else {
+        guard let columnPipeline = try? device.makeRenderPipelineState(descriptor: descriptor) else {
             return nil
         }
-        self.pipelineState = pipeline
+        self.columnPipeline = columnPipeline
+
+        guard let bloom = BloomPipeline(
+            device: device,
+            library: library,
+            pixelFormat: .bgra8Unorm_srgb
+        ) else { return nil }
+        self.bloomPipeline = bloom
+
         super.init()
 
         // Seed with a default grid so columnBuffer is non-nil before the first
@@ -48,32 +58,7 @@ public final class MatrixRenderer: NSObject, MTKViewDelegate {
 
     public func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
         guard size.width > 0, size.height > 0 else { return }
-        grid = GridLayout(drawableSize: size)
-        rebuildColumnBuffer()
-    }
-
-    private func rebuildColumnBuffer() {
-        let count = grid.columnCount
-        guard count > 0 else { return }
-        var states: [ColumnState] = []
-        states.reserveCapacity(count)
-        for col in 0..<count {
-            let speed = Float.random(in: 8...22)
-            let head = Float.random(in: -20...0)
-            let seed = UInt32(col) &* 2654435761
-            states.append(ColumnState(
-                headRow: head,
-                speed: speed,
-                frameCounter: 0,
-                seed: seed
-            ))
-        }
-        let length = MemoryLayout<ColumnState>.stride * count
-        columnBuffer = device.makeBuffer(
-            bytes: states,
-            length: length,
-            options: .storageModeShared
-        )
+        applyDrawableSize(size)
     }
 
     public func draw(in view: MTKView) {
@@ -85,8 +70,7 @@ public final class MatrixRenderer: NSObject, MTKViewDelegate {
         if actualSize.width > 0, actualSize.height > 0,
            abs(grid.viewportSize.width - actualSize.width) > 0.5
             || abs(grid.viewportSize.height - actualSize.height) > 0.5 {
-            grid = GridLayout(drawableSize: actualSize)
-            rebuildColumnBuffer()
+            applyDrawableSize(actualSize)
         }
 
         let now = CACurrentMediaTime()
@@ -95,16 +79,21 @@ public final class MatrixRenderer: NSObject, MTKViewDelegate {
 
         advance(deltaTime: dt)
 
-        // Order matters: validate everything that doesn't allocate Metal
-        // resources first. Creating an encoder and then bailing without
-        // endEncoding() causes Metal to abort the process.
         guard let columnBuffer,
-              let descriptor = view.currentRenderPassDescriptor,
+              let sceneTexture,
               let drawable = view.currentDrawable,
               let buffer = commandQueue.makeCommandBuffer() else {
             return
         }
-        guard let encoder = buffer.makeRenderCommandEncoder(descriptor: descriptor) else {
+
+        // ---- Pass 1: render columns to sceneTexture ----
+        let scenePass = MTLRenderPassDescriptor()
+        scenePass.colorAttachments[0].texture = sceneTexture
+        scenePass.colorAttachments[0].loadAction = .clear
+        scenePass.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 1)
+        scenePass.colorAttachments[0].storeAction = .store
+
+        guard let encoder = buffer.makeRenderCommandEncoder(descriptor: scenePass) else {
             return
         }
 
@@ -121,7 +110,7 @@ public final class MatrixRenderer: NSObject, MTKViewDelegate {
             cellsPerRow: UInt32(glyphAtlas.cellsPerRow)
         )
 
-        encoder.setRenderPipelineState(pipelineState)
+        encoder.setRenderPipelineState(columnPipeline)
         encoder.setFragmentBytes(
             &uniforms,
             length: MemoryLayout<GridUniforms>.stride,
@@ -131,16 +120,65 @@ public final class MatrixRenderer: NSObject, MTKViewDelegate {
         encoder.setFragmentTexture(glyphAtlas.texture, index: 0)
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
         encoder.endEncoding()
+
+        // ---- Pass 2-5: bloom + composite to drawable ----
+        bloomPipeline.encode(
+            commandBuffer: buffer,
+            sceneTexture: sceneTexture,
+            target: drawable.texture
+        )
+
         buffer.present(drawable)
         buffer.commit()
+    }
+
+    private func applyDrawableSize(_ size: CGSize) {
+        grid = GridLayout(drawableSize: size)
+        rebuildColumnBuffer()
+        ensureSceneTexture(size: size)
+        bloomPipeline.resize(to: size)
+    }
+
+    private func ensureSceneTexture(size: CGSize) {
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .bgra8Unorm_srgb,
+            width: max(1, Int(size.width)),
+            height: max(1, Int(size.height)),
+            mipmapped: false
+        )
+        descriptor.usage = [.renderTarget, .shaderRead]
+        descriptor.storageMode = .private
+        sceneTexture = device.makeTexture(descriptor: descriptor)
+    }
+
+    private func rebuildColumnBuffer() {
+        let count = grid.columnCount
+        guard count > 0 else { return }
+        var states: [ColumnState] = []
+        states.reserveCapacity(count)
+        for col in 0..<count {
+            let speed = Float.random(in: 8...22)
+            let head = Float.random(in: -20...0)
+            let seed = UInt32.random(in: 1...UInt32.max)
+            _ = col
+            states.append(ColumnState(
+                headRow: head,
+                speed: speed,
+                frameCounter: 0,
+                seed: seed
+            ))
+        }
+        let length = MemoryLayout<ColumnState>.stride * count
+        columnBuffer = device.makeBuffer(
+            bytes: states,
+            length: length,
+            options: .storageModeShared
+        )
     }
 
     private func advance(deltaTime: Float) {
         guard let columnBuffer else { return }
         let count = grid.columnCount
-        // Conservative ceiling: per-column trailLength is up to 20 (set in
-        // shader as 12 + seed % 9). Reset once head clears the longest
-        // possible trail.
         let maxTrailLength: Float = 20
         let states = columnBuffer.contents().bindMemory(
             to: ColumnState.self,
@@ -152,8 +190,6 @@ public final class MatrixRenderer: NSObject, MTKViewDelegate {
             if states[i].headRow > Float(grid.rowCount) + maxTrailLength {
                 states[i].headRow = -Float.random(in: 0...12)
                 states[i].speed = Float.random(in: 8...22)
-                // New seed on each cycle so trail length, stammer flag, and
-                // glyph pattern all differ between this column's reincarnations.
                 states[i].seed = UInt32.random(in: 1...UInt32.max)
             }
         }

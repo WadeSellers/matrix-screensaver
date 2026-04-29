@@ -41,14 +41,10 @@ static uint hash3(uint a, uint b, uint c) {
     return a;
 }
 
-// Piecewise gradient: head -> bright green -> mid green -> dim green -> black,
-// keyed on distance from the head (0 = at head, 1+ = behind head).
 static float3 trailColor(float trailDist, float trailLength) {
-    // Head: white-green flash.
     if (trailDist < 0.5) {
-        return float3(0.87, 1.0, 0.87); // #DDFFDD
+        return float3(0.87, 1.0, 0.87); // #DDFFDD head
     }
-    // Canonical Matrix gradient stops.
     constexpr float3 c1 = float3(0.0, 1.0, 0.4);     // #00FF66
     constexpr float3 c2 = float3(0.0, 0.53, 0.2);    // #008833
     constexpr float3 c3 = float3(0.0, 0.2, 0.067);   // #003311
@@ -82,22 +78,13 @@ fragment float4 fragment_columns(
 
     ColumnState s = columns[col];
 
-    // Per-column trail length (12-20 cells), derived from seed so it stays
-    // stable for the lifetime of the column.
     float trailLength = 12.0 + float(s.seed % 9u);
-
-    // Distance from the head: 0 at head, positive going up the trail.
     float trailDist = s.headRow - float(row);
 
-    // Outside the trail window: empty cell.
     if (trailDist < 0.0 || trailDist > trailLength) {
         return float4(0.0);
     }
 
-    // Glyph index. Bucket frameCounter into groups of 3 frames so glyphs
-    // hold for ~3 frames before potentially picking a new one. Heads change
-    // every bucket; trail glyphs stay frozen so the trail looks like it's
-    // "memory" of past head positions, not a churning column.
     bool isHead = (trailDist < 0.5);
     uint frameBucket = isHead ? (s.frameCounter / 3u) : 0u;
     uint glyphIdx = hash3(col, row, s.seed ^ frameBucket) % grid.glyphCount;
@@ -116,7 +103,6 @@ fragment float4 fragment_columns(
 
     float3 color = trailColor(trailDist, trailLength);
 
-    // Stammer columns (1 in 5): one random row in the trail flickers brighter.
     bool isStammer = (s.seed % 5u) == 0u;
     if (isStammer) {
         float stammerRow = floor(fmod(float(s.seed >> 8) / 7.0, trailLength - 1.0)) + 1.0;
@@ -126,4 +112,76 @@ fragment float4 fragment_columns(
     }
 
     return float4(color * alpha, 1.0);
+}
+
+// ===== Bloom pipeline =====
+// 1. fragment_bloom_extract: read scene, keep only pixels above a luminance
+//    threshold, halve resolution as a side-effect via the smaller render target.
+// 2. fragment_bloom_blur_h / _v: separable Gaussian, 9-tap, sigma~3 cells.
+// 3. fragment_bloom_composite: scene + bloom*strength to the drawable.
+
+constant float kBloomThreshold = 0.55;
+constant float kBloomStrength  = 0.85;
+
+// 9-tap Gaussian kernel (sigma~2). Normalized so weights sum to ~1.
+constant float kBlurWeights[9] = {
+    0.027, 0.066, 0.123, 0.180, 0.207, 0.180, 0.123, 0.066, 0.028
+};
+
+struct BlurUniforms {
+    float2 texelSize;   // 1/textureWidth, 1/textureHeight
+    float2 _pad;
+};
+
+fragment float4 fragment_bloom_extract(
+    VSOut in [[stage_in]],
+    texture2d<float> scene [[texture(0)]]
+) {
+    constexpr sampler s(filter::linear, address::clamp_to_edge);
+    float3 c = scene.sample(s, float2(in.uv.x, 1.0 - in.uv.y)).rgb;
+    float lum = dot(c, float3(0.299, 0.587, 0.114));
+    float keep = smoothstep(kBloomThreshold, kBloomThreshold + 0.15, lum);
+    return float4(c * keep, 1.0);
+}
+
+fragment float4 fragment_bloom_blur_h(
+    VSOut in [[stage_in]],
+    constant BlurUniforms &u [[buffer(0)]],
+    texture2d<float> src [[texture(0)]]
+) {
+    constexpr sampler s(filter::linear, address::clamp_to_edge);
+    float2 uv = float2(in.uv.x, 1.0 - in.uv.y);
+    float3 sum = float3(0.0);
+    for (int i = -4; i <= 4; ++i) {
+        float2 offset = float2(float(i) * u.texelSize.x, 0.0);
+        sum += src.sample(s, uv + offset).rgb * kBlurWeights[i + 4];
+    }
+    return float4(sum, 1.0);
+}
+
+fragment float4 fragment_bloom_blur_v(
+    VSOut in [[stage_in]],
+    constant BlurUniforms &u [[buffer(0)]],
+    texture2d<float> src [[texture(0)]]
+) {
+    constexpr sampler s(filter::linear, address::clamp_to_edge);
+    float2 uv = float2(in.uv.x, 1.0 - in.uv.y);
+    float3 sum = float3(0.0);
+    for (int i = -4; i <= 4; ++i) {
+        float2 offset = float2(0.0, float(i) * u.texelSize.y);
+        sum += src.sample(s, uv + offset).rgb * kBlurWeights[i + 4];
+    }
+    return float4(sum, 1.0);
+}
+
+fragment float4 fragment_bloom_composite(
+    VSOut in [[stage_in]],
+    texture2d<float> scene [[texture(0)]],
+    texture2d<float> bloom [[texture(1)]]
+) {
+    constexpr sampler s(filter::linear, address::clamp_to_edge);
+    float2 uv = float2(in.uv.x, 1.0 - in.uv.y);
+    float3 sceneColor = scene.sample(s, uv).rgb;
+    float3 bloomColor = bloom.sample(s, uv).rgb;
+    return float4(sceneColor + bloomColor * kBloomStrength, 1.0);
 }
