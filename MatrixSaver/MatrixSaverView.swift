@@ -80,15 +80,19 @@ public final class MatrixSaverView: ScreenSaverView {
     }
 
     private func registerLifecycleObservers() {
-        // Sonoma+ stopped reliably calling stopAnimation() before tearing the
-        // screensaver down; this distributed notification is the actual signal.
-        // The block API retains the observer; we don't need to keep a handle.
+        // willstop arrives just before the framework tears the screensaver
+        // down. We listen for it as a defensive pause so the renderer stops
+        // pushing frames into a drawable that's about to be invalidated.
+        // We deliberately do NOT call exit(0) here: doing so leaves
+        // legacyScreenSaver in a half-dead state where every *other*
+        // re-activation comes up with a black screen until you killall it.
+        // stopAnimation() (overridden above) handles the actual pause.
         DistributedNotificationCenter.default().addObserver(
             forName: NSNotification.Name("com.apple.screensaver.willstop"),
             object: nil,
             queue: .main
-        ) { _ in
-            exit(0)
+        ) { [weak self] _ in
+            self?.matrixView?.isPaused = true
         }
     }
 }
