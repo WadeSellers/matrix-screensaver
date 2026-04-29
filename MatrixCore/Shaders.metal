@@ -114,14 +114,14 @@ fragment float4 fragment_columns(
     return float4(color * alpha, 1.0);
 }
 
-// ===== Bloom pipeline =====
+// ===== Bloom + CRT pipeline =====
 // 1. fragment_bloom_extract: read scene, keep only pixels above a luminance
 //    threshold, halve resolution as a side-effect via the smaller render target.
 // 2. fragment_bloom_blur_h / _v: separable Gaussian, 9-tap, sigma~3 cells.
-// 3. fragment_bloom_composite: scene + bloom*strength to the drawable.
+// 3. fragment_bloom_composite: scene + bloom*strength + optional CRT
+//    (scanlines + vignette) to the drawable.
 
 constant float kBloomThreshold = 0.55;
-constant float kBloomStrength  = 0.85;
 
 // 9-tap Gaussian kernel (sigma~2). Normalized so weights sum to ~1.
 constant float kBlurWeights[9] = {
@@ -130,6 +130,15 @@ constant float kBlurWeights[9] = {
 
 struct BlurUniforms {
     float2 texelSize;   // 1/textureWidth, 1/textureHeight
+    float2 _pad;
+};
+
+struct CompositeUniforms {
+    float bloomStrength;     // 0..1, scales the bloom contribution
+    float crtEnabled;        // 0 or 1; toggles scanlines + vignette
+    float scanlineDarken;    // 0..1, how much the dark scanlines drop
+    float vignetteAmount;    // 0..1, vignette intensity
+    float2 viewportSize;     // pixels, used for scanline frequency
     float2 _pad;
 };
 
@@ -176,6 +185,7 @@ fragment float4 fragment_bloom_blur_v(
 
 fragment float4 fragment_bloom_composite(
     VSOut in [[stage_in]],
+    constant CompositeUniforms &u [[buffer(0)]],
     texture2d<float> scene [[texture(0)]],
     texture2d<float> bloom [[texture(1)]]
 ) {
@@ -183,5 +193,24 @@ fragment float4 fragment_bloom_composite(
     float2 uv = float2(in.uv.x, 1.0 - in.uv.y);
     float3 sceneColor = scene.sample(s, uv).rgb;
     float3 bloomColor = bloom.sample(s, uv).rgb;
-    return float4(sceneColor + bloomColor * kBloomStrength, 1.0);
+    float3 color = sceneColor + bloomColor * u.bloomStrength;
+
+    // Optional CRT pass: scanlines + soft vignette. Off by default.
+    if (u.crtEnabled > 0.5) {
+        // Crisp scanlines every 6 physical pixels — wide enough to read on
+        // retina and at downsampled screenshot resolutions. floor(...) buckets
+        // pixels; alternating groups are darkened.
+        float band = floor(uv.y * u.viewportSize.y * (1.0 / 6.0));
+        float scan = fmod(band, 2.0);  // 0 or 1
+        float scanFactor = mix(1.0 - u.scanlineDarken, 1.0, scan);
+        color *= scanFactor;
+
+        // Vignette: radial darkening toward edges.
+        float2 centered = uv - 0.5;
+        float r2 = dot(centered, centered);
+        float vignette = 1.0 - r2 * u.vignetteAmount * 1.6;
+        color *= clamp(vignette, 0.0, 1.0);
+    }
+
+    return float4(color, 1.0);
 }

@@ -11,6 +11,8 @@ public final class MatrixRenderer: NSObject, MTKViewDelegate {
     private let glyphAtlas: GlyphAtlas
     private let bloomPipeline: BloomPipeline
 
+    public var settings: MatrixSettings = .defaults
+
     private var grid: GridLayout = GridLayout(drawableSize: CGSize(width: 1, height: 1))
     private var columnBuffer: MTLBuffer?
     private var sceneTexture: MTLTexture?
@@ -125,7 +127,9 @@ public final class MatrixRenderer: NSObject, MTKViewDelegate {
         bloomPipeline.encode(
             commandBuffer: buffer,
             sceneTexture: sceneTexture,
-            target: drawable.texture
+            target: drawable.texture,
+            settings: settings,
+            viewportSize: actualSize
         )
 
         buffer.present(drawable)
@@ -184,9 +188,10 @@ public final class MatrixRenderer: NSObject, MTKViewDelegate {
             to: ColumnState.self,
             capacity: count
         )
+        let speedScale = settings.speedMultiplier
         for i in 0..<count {
             states[i].frameCounter &+= 1
-            states[i].headRow += states[i].speed * deltaTime
+            states[i].headRow += states[i].speed * deltaTime * speedScale
             if states[i].headRow > Float(grid.rowCount) + maxTrailLength {
                 states[i].headRow = -Float.random(in: 0...12)
                 states[i].speed = Float.random(in: 8...22)

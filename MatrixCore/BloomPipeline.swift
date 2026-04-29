@@ -69,55 +69,85 @@ public final class BloomPipeline {
         commandBuffer: MTLCommandBuffer,
         sceneTexture: MTLTexture,
         target: MTLTexture,
+        settings: MatrixSettings,
+        viewportSize: CGSize,
         loadAction: MTLLoadAction = .dontCare
     ) {
         guard let bloomA, let bloomB else { return }
 
-        // 1. Extract: scene → bloomA (half-res, only pixels above threshold).
-        encodeFullscreen(
-            commandBuffer: commandBuffer,
-            pipeline: extractPipeline,
-            destination: bloomA
-        ) { encoder in
-            encoder.setFragmentTexture(sceneTexture, index: 0)
+        // If bloom is disabled, skip the bloom passes and use a black bloom
+        // texture in the composite. (We still use the composite shader so
+        // CRT effects can apply uniformly.)
+        if settings.bloomEnabled {
+            encodeFullscreen(
+                commandBuffer: commandBuffer,
+                pipeline: extractPipeline,
+                destination: bloomA
+            ) { encoder in
+                encoder.setFragmentTexture(sceneTexture, index: 0)
+            }
+
+            var blurU = blurUniforms(forSize: bloomSize)
+            encodeFullscreen(
+                commandBuffer: commandBuffer,
+                pipeline: blurHPipeline,
+                destination: bloomB
+            ) { encoder in
+                encoder.setFragmentBytes(
+                    &blurU,
+                    length: MemoryLayout<BlurUniforms>.stride,
+                    index: 0
+                )
+                encoder.setFragmentTexture(bloomA, index: 0)
+            }
+
+            encodeFullscreen(
+                commandBuffer: commandBuffer,
+                pipeline: blurVPipeline,
+                destination: bloomA
+            ) { encoder in
+                encoder.setFragmentBytes(
+                    &blurU,
+                    length: MemoryLayout<BlurUniforms>.stride,
+                    index: 0
+                )
+                encoder.setFragmentTexture(bloomB, index: 0)
+            }
+        } else {
+            // Clear bloomA to black so the composite gets nothing from it.
+            let clearPass = MTLRenderPassDescriptor()
+            clearPass.colorAttachments[0].texture = bloomA
+            clearPass.colorAttachments[0].loadAction = .clear
+            clearPass.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 1)
+            clearPass.colorAttachments[0].storeAction = .store
+            if let enc = commandBuffer.makeRenderCommandEncoder(descriptor: clearPass) {
+                enc.endEncoding()
+            }
         }
 
-        // 2. Horizontal blur: bloomA → bloomB.
-        var blurUniforms = blurUniforms(forSize: bloomSize)
-        encodeFullscreen(
-            commandBuffer: commandBuffer,
-            pipeline: blurHPipeline,
-            destination: bloomB
-        ) { encoder in
-            encoder.setFragmentBytes(
-                &blurUniforms,
-                length: MemoryLayout<BlurUniforms>.stride,
-                index: 0
-            )
-            encoder.setFragmentTexture(bloomA, index: 0)
-        }
+        var compU = CompositeUniforms(
+            bloomStrength: settings.bloomEnabled ? 0.85 : 0,
+            crtEnabled: settings.crtEnabled ? 1 : 0,
+            scanlineDarken: 0.30,
+            vignetteAmount: 0.55,
+            viewportSize: SIMD2<Float>(
+                Float(viewportSize.width),
+                Float(viewportSize.height)
+            ),
+            pad: SIMD2<Float>(0, 0)
+        )
 
-        // 3. Vertical blur: bloomB → bloomA.
-        encodeFullscreen(
-            commandBuffer: commandBuffer,
-            pipeline: blurVPipeline,
-            destination: bloomA
-        ) { encoder in
-            encoder.setFragmentBytes(
-                &blurUniforms,
-                length: MemoryLayout<BlurUniforms>.stride,
-                index: 0
-            )
-            encoder.setFragmentTexture(bloomB, index: 0)
-        }
-
-        // 4. Composite: scene + bloom → target (drawable).
         encodeFullscreen(
             commandBuffer: commandBuffer,
             pipeline: compositePipeline,
             destination: target,
             loadAction: loadAction
         ) { encoder in
+            encoder.setFragmentBytes(
+                &compU,
+                length: MemoryLayout<CompositeUniforms>.stride,
+                index: 0
+            )
             encoder.setFragmentTexture(sceneTexture, index: 0)
             encoder.setFragmentTexture(bloomA, index: 1)
         }
@@ -156,5 +186,14 @@ public final class BloomPipeline {
 
 private struct BlurUniforms {
     var texelSize: SIMD2<Float>
+    var pad: SIMD2<Float>
+}
+
+private struct CompositeUniforms {
+    var bloomStrength: Float
+    var crtEnabled: Float
+    var scanlineDarken: Float
+    var vignetteAmount: Float
+    var viewportSize: SIMD2<Float>
     var pad: SIMD2<Float>
 }

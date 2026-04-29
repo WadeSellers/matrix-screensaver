@@ -25,6 +25,30 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         spawnWindow()
     }
 
+    @objc func toggleCRT(_ sender: Any?) {
+        forEachRenderer { $0.settings.crtEnabled.toggle() }
+    }
+
+    @objc func toggleBloom(_ sender: Any?) {
+        forEachRenderer { $0.settings.bloomEnabled.toggle() }
+    }
+
+    @objc func slower(_ sender: Any?) {
+        forEachRenderer { $0.settings.speedMultiplier = max(0.25, $0.settings.speedMultiplier - 0.25) }
+    }
+
+    @objc func faster(_ sender: Any?) {
+        forEachRenderer { $0.settings.speedMultiplier = min(3.0, $0.settings.speedMultiplier + 0.25) }
+    }
+
+    private func forEachRenderer(_ apply: (MatrixRenderer) -> Void) {
+        for window in windows {
+            if let view = window.contentView as? MatrixView, let r = view.renderer {
+                apply(r)
+            }
+        }
+    }
+
     private func spawnWindow() {
         let frame = NSRect(x: 0, y: 0, width: 1280, height: 800)
         let window = NSWindow(
@@ -76,6 +100,36 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             keyEquivalent: "n"
         ))
         fileMenuItem.submenu = fileMenu
+
+        let viewMenuItem = NSMenuItem()
+        mainMenu.addItem(viewMenuItem)
+        let viewMenu = NSMenu(title: "View")
+        viewMenu.addItem(NSMenuItem(
+            title: "Toggle CRT Mode",
+            action: #selector(toggleCRT(_:)),
+            keyEquivalent: "t"
+        ))
+        viewMenu.addItem(NSMenuItem(
+            title: "Toggle Bloom",
+            action: #selector(toggleBloom(_:)),
+            keyEquivalent: "b"
+        ))
+        viewMenu.addItem(NSMenuItem.separator())
+        let slowerItem = NSMenuItem(
+            title: "Slower",
+            action: #selector(slower(_:)),
+            keyEquivalent: "-"
+        )
+        slowerItem.keyEquivalentModifierMask = [.command]
+        viewMenu.addItem(slowerItem)
+        let fasterItem = NSMenuItem(
+            title: "Faster",
+            action: #selector(faster(_:)),
+            keyEquivalent: "="
+        )
+        fasterItem.keyEquivalentModifierMask = [.command]
+        viewMenu.addItem(fasterItem)
+        viewMenuItem.submenu = viewMenu
 
         NSApp.mainMenu = mainMenu
     }
