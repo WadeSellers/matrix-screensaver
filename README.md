@@ -84,7 +84,23 @@ columns ──► sceneTexture ──► [extract] ──► [blur H] ──► 
 
 ## Known limitations
 
-- **Multi-display: only the primary screen renders.** On macOS Sequoia (15) and Tahoe (26), `legacyScreenSaver` instantiates a `ScreenSaverView` for each connected display but mounts the secondary display's window at coordinates that don't intersect any `NSScreen`, so the rendered frames never reach the panel. We attempt a runtime workaround (find the matching `NSScreen` and call `setFrame` to the correct origin), but the framework silently reverts our `setFrame` — the OS owns window placement here and ignores plugins. Apple's own native screensavers go through a separate `.appex` API that's not exposed to third parties. **Workaround:** if you want both displays dark when the screensaver triggers, switch your external monitor's input to a different source before walking away, or set its energy-saver to sleep on a short idle.
+These are all the same underlying macOS Sequoia/Tahoe bug in `legacyScreenSaver`'s window management — Apple's own savers use a separate `.appex` API that's not exposed to third parties.
+
+- **Multi-display: only the primary screen renders.** On Sequoia (15) and Tahoe (26), `legacyScreenSaver` instantiates a `ScreenSaverView` for each connected display but mounts the secondary display's window at coordinates that don't intersect any `NSScreen`, so the rendered frames never reach the panel. Diagnosed via `os_log` + multi-display testing. Attempted workaround in code (`window.setFrame` to the matching `NSScreen`'s origin) gets silently reverted by the framework — the OS owns window placement here and ignores plugins.
+- **Intermittent black screen on the primary display.** The same framework will sometimes spawn 2–3 `ScreenSaverView` instances per activation, with one or two of them mounted in zero-size windows. macOS picks which window is visible more or less arbitrarily; if it picks a zero-size phantom instead of the real one, you get a black screen instead of rain. Sometimes works on first try, sometimes doesn't.
+
+### Workarounds
+
+When the screensaver shows black instead of rain, in order of friction:
+
+1. **Quick reset** (usually fixes it on the next trigger):
+   ```bash
+   killall legacyScreenSaver
+   ```
+   Then re-trigger the screensaver. Often the framework picks the working window the second time.
+2. **Log out and back in** — resets macOS's per-display window graph durably.
+3. **Disconnect the external before walking away** — removes the multi-display ambiguity.
+4. **Use display sleep instead.** System Settings → Lock Screen → "Turn display off when inactive" → short interval. Reliable, just not as cool.
 
 ## Visual reference
 
