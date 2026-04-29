@@ -82,6 +82,10 @@ columns ──► sceneTexture ──► [extract] ──► [blur H] ──► 
   - `low` (`.serious` / `.critical` thermal) → 20fps, no bloom
 - Per-screen state is automatic — macOS instantiates one `ScreenSaverView` per `NSScreen`, and each one creates its own `MatrixView` + `MatrixRenderer` (no shared mutable state).
 
+## Known limitations
+
+- **Multi-display: only the primary screen renders.** On macOS Sequoia (15) and Tahoe (26), `legacyScreenSaver` instantiates a `ScreenSaverView` for each connected display but mounts the secondary display's window at coordinates that don't intersect any `NSScreen`, so the rendered frames never reach the panel. We attempt a runtime workaround (find the matching `NSScreen` and call `setFrame` to the correct origin), but the framework silently reverts our `setFrame` — the OS owns window placement here and ignores plugins. Apple's own native screensavers go through a separate `.appex` API that's not exposed to third parties. **Workaround:** if you want both displays dark when the screensaver triggers, switch your external monitor's input to a different source before walking away, or set its energy-saver to sleep on a short idle.
+
 ## Visual reference
 
 Color stops, fall speed, glyph swap rate, and trail length come from [carlnewton's frame analysis](https://carlnewton.github.io/digital-rain-analysis/) and the defaults in [Rezmason/matrix](https://github.com/Rezmason/matrix). The film itself has no published spec.
