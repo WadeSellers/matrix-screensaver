@@ -138,7 +138,10 @@ public final class MatrixRenderer: NSObject, MTKViewDelegate {
     private func advance(deltaTime: Float) {
         guard let columnBuffer else { return }
         let count = grid.columnCount
-        let trailLength: Float = 20
+        // Conservative ceiling: per-column trailLength is up to 20 (set in
+        // shader as 12 + seed % 9). Reset once head clears the longest
+        // possible trail.
+        let maxTrailLength: Float = 20
         let states = columnBuffer.contents().bindMemory(
             to: ColumnState.self,
             capacity: count
@@ -146,9 +149,12 @@ public final class MatrixRenderer: NSObject, MTKViewDelegate {
         for i in 0..<count {
             states[i].frameCounter &+= 1
             states[i].headRow += states[i].speed * deltaTime
-            if states[i].headRow > Float(grid.rowCount) + trailLength {
-                states[i].headRow = -Float.random(in: 0...10)
+            if states[i].headRow > Float(grid.rowCount) + maxTrailLength {
+                states[i].headRow = -Float.random(in: 0...12)
                 states[i].speed = Float.random(in: 8...22)
+                // New seed on each cycle so trail length, stammer flag, and
+                // glyph pattern all differ between this column's reincarnations.
+                states[i].seed = UInt32.random(in: 1...UInt32.max)
             }
         }
     }

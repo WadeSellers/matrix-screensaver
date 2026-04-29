@@ -31,7 +31,6 @@ vertex VSOut vertex_fullscreen(uint vid [[vertex_id]]) {
     return out;
 }
 
-// Stable per-(col,row,bucket) hash. PCG-style scrambling.
 static uint hash3(uint a, uint b, uint c) {
     a = (a ^ 61u) ^ (a >> 16);
     a = a + (a << 3);
@@ -40,6 +39,29 @@ static uint hash3(uint a, uint b, uint c) {
     a = a ^ (a >> 15);
     a = a ^ (b * 73856093u) ^ (c * 83492791u);
     return a;
+}
+
+// Piecewise gradient: head -> bright green -> mid green -> dim green -> black,
+// keyed on distance from the head (0 = at head, 1+ = behind head).
+static float3 trailColor(float trailDist, float trailLength) {
+    // Head: white-green flash.
+    if (trailDist < 0.5) {
+        return float3(0.87, 1.0, 0.87); // #DDFFDD
+    }
+    // Canonical Matrix gradient stops.
+    constexpr float3 c1 = float3(0.0, 1.0, 0.4);     // #00FF66
+    constexpr float3 c2 = float3(0.0, 0.53, 0.2);    // #008833
+    constexpr float3 c3 = float3(0.0, 0.2, 0.067);   // #003311
+    constexpr float3 c4 = float3(0.0, 0.0, 0.0);
+
+    float t = trailDist;
+    if (t < 8.0) {
+        return mix(c1, c2, (t - 1.0) / 7.0);
+    } else if (t < 16.0) {
+        return mix(c2, c3, (t - 8.0) / 8.0);
+    }
+    float fadeRange = max(trailLength - 16.0, 1.0);
+    return mix(c3, c4, clamp((t - 16.0) / fadeRange, 0.0, 1.0));
 }
 
 fragment float4 fragment_columns(
@@ -60,14 +82,24 @@ fragment float4 fragment_columns(
 
     ColumnState s = columns[col];
 
-    // Cell hasn't been touched yet — leave black.
-    if (float(row) > s.headRow) {
+    // Per-column trail length (12-20 cells), derived from seed so it stays
+    // stable for the lifetime of the column.
+    float trailLength = 12.0 + float(s.seed % 9u);
+
+    // Distance from the head: 0 at head, positive going up the trail.
+    float trailDist = s.headRow - float(row);
+
+    // Outside the trail window: empty cell.
+    if (trailDist < 0.0 || trailDist > trailLength) {
         return float4(0.0);
     }
 
-    // Glyph swap rule: bucket frameCounter into groups of 3 frames so the
-    // glyph holds for ~3 frames before potentially picking a new one.
-    uint frameBucket = s.frameCounter / 3u;
+    // Glyph index. Bucket frameCounter into groups of 3 frames so glyphs
+    // hold for ~3 frames before potentially picking a new one. Heads change
+    // every bucket; trail glyphs stay frozen so the trail looks like it's
+    // "memory" of past head positions, not a churning column.
+    bool isHead = (trailDist < 0.5);
+    uint frameBucket = isHead ? (s.frameCounter / 3u) : 0u;
     uint glyphIdx = hash3(col, row, s.seed ^ frameBucket) % grid.glyphCount;
 
     uint atlasCol = glyphIdx % grid.cellsPerRow;
@@ -82,6 +114,16 @@ fragment float4 fragment_columns(
     constexpr sampler s_atlas(filter::linear, address::clamp_to_edge);
     float alpha = glyphAtlas.sample(s_atlas, float2(atlasU, atlasV)).r;
 
-    // Step 4: flat green for now. Trail fade and head highlight in Step 5.
-    return float4(0.0, 1.0, 0.4, 1.0) * alpha;
+    float3 color = trailColor(trailDist, trailLength);
+
+    // Stammer columns (1 in 5): one random row in the trail flickers brighter.
+    bool isStammer = (s.seed % 5u) == 0u;
+    if (isStammer) {
+        float stammerRow = floor(fmod(float(s.seed >> 8) / 7.0, trailLength - 1.0)) + 1.0;
+        if (abs(trailDist - stammerRow) < 0.5) {
+            color += float3(0.25, 0.4, 0.25);
+        }
+    }
+
+    return float4(color * alpha, 1.0);
 }
