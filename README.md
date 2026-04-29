@@ -2,6 +2,8 @@
 
 A screen-accurate macOS screensaver that replicates the digital rain effect from *The Matrix* (1999): mirrored half-width katakana flowing in green columns down a black screen, white-green leading characters, fading green trails, occasional stammer flickers, soft bloom on the heads, optional CRT post-process.
 
+![Matrix screensaver running on a MacBook Air](docs/screenshot.jpg)
+
 Built in Swift + Metal for macOS Sequoia (14.0+) and Apple Silicon. Runs at 60fps on a 2022 MacBook Air M2; auto-throttles to 30fps on battery or under thermal pressure.
 
 ## Install
