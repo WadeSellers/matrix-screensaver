@@ -28,6 +28,30 @@ final class SettingsWindowController: NSObject {
         }
     }
 
+    /// Push an externally-changed AppSettings into the model without
+    /// triggering the onChange feedback (which would re-call applyAndPersist
+    /// in a loop). Called by AppDelegate when a hotkey or other code path
+    /// changes settings outside the SwiftUI form.
+    func syncFromExternal(_ newSettings: AppSettings) {
+        guard model.settings != newSettings else { return }
+        let saved = model.onChange
+        model.onChange = nil
+        model.settings = newSettings
+        model.onChange = saved
+    }
+
+    /// Pause / resume the live preview render loop. Called by AppDelegate
+    /// when the fullscreen session activates so we don't compete with it
+    /// on the main thread or GPU. Idempotent.
+    func setPreviewActive(_ shouldRun: Bool) {
+        guard let preview = previewView else { return }
+        if shouldRun {
+            preview.startPreviewIfNeeded(settings: model.settings.matrix)
+        } else {
+            preview.stopPreview()
+        }
+    }
+
     func show() {
         if let existing = window {
             NSApp.activate(ignoringOtherApps: true)
@@ -38,18 +62,32 @@ final class SettingsWindowController: NSObject {
 
         let frameRect = NSRect(x: 0, y: 0, width: 460, height: 460)
 
-        // Custom layer-hosted contentView. Matrix preview renders as its
-        // background; the SwiftUI form sits on top with translucent
-        // section backgrounds so the rain shows through.
+        // Two sibling subviews inside a regular content view:
+        //   - preview (layer-hosting, has the CAMetalLayer)
+        //   - formHost (NSHostingView with the SwiftUI Form)
+        // They share a normal NSView parent so SwiftUI's first-paint logic
+        // runs in a "vanilla" context. Nesting NSHostingView inside a
+        // layer-hosting parent caused SwiftUI to defer drawing until first
+        // user interaction.
+        let contentView = NSView(frame: frameRect)
+
         let preview = SettingsPreviewView(frame: frameRect)
+        preview.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(preview)
+
         let formHost = NSHostingView(rootView: SettingsView(model: model))
         formHost.translatesAutoresizingMaskIntoConstraints = false
-        preview.addSubview(formHost)
+        contentView.addSubview(formHost)
+
         NSLayoutConstraint.activate([
-            formHost.topAnchor.constraint(equalTo: preview.topAnchor),
-            formHost.bottomAnchor.constraint(equalTo: preview.bottomAnchor),
-            formHost.leadingAnchor.constraint(equalTo: preview.leadingAnchor),
-            formHost.trailingAnchor.constraint(equalTo: preview.trailingAnchor)
+            preview.topAnchor.constraint(equalTo: contentView.topAnchor),
+            preview.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+            preview.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            preview.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            formHost.topAnchor.constraint(equalTo: contentView.topAnchor),
+            formHost.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+            formHost.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            formHost.trailingAnchor.constraint(equalTo: contentView.trailingAnchor)
         ])
 
         let window = NSWindow(
@@ -64,7 +102,7 @@ final class SettingsWindowController: NSObject {
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .visible
         window.isReleasedWhenClosed = false
-        window.contentView = preview
+        window.contentView = contentView
 
         let delegate = SettingsWindowDelegate { [weak preview] in
             preview?.stopPreview()

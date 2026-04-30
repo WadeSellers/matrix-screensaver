@@ -126,10 +126,16 @@ public final class BloomPipeline {
         }
 
         var compU = CompositeUniforms(
-            bloomStrength: settings.bloomEnabled ? 0.85 : 0,
+            // Cranked up from the original "subtle" values so the
+            // difference between on/off is obviously visible — the user
+            // shouldn't have to squint to confirm a toggle worked.
+            //   bloomStrength:   0.85 → 1.20 (head halos visibly bigger)
+            //   scanlineDarken:  0.30 → 0.45 (scanlines clearly visible)
+            //   vignetteAmount:  0.55 → 0.70 (corner falloff prominent)
+            bloomStrength: settings.bloomEnabled ? 1.20 : 0,
             crtEnabled: settings.crtEnabled ? 1 : 0,
-            scanlineDarken: 0.30,
-            vignetteAmount: 0.55,
+            scanlineDarken: 0.45,
+            vignetteAmount: 0.70,
             viewportSize: SIMD2<Float>(
                 Float(viewportSize.width),
                 Float(viewportSize.height)

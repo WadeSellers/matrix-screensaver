@@ -30,9 +30,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 NSApp.terminate(nil)
             }
         )
+        session.onHotkey = { [weak self] hotkey in
+            guard let self else { return }
+            var newSettings = self.settings
+            switch hotkey {
+            case .toggleBloom:
+                newSettings.matrix.bloomEnabled.toggle()
+            case .toggleCRT:
+                newSettings.matrix.crtEnabled.toggle()
+            }
+            self.applyAndPersist(newSettings)
+        }
+
         session.statusObserver = { [weak menuBarItem, weak self] isActive in
             menuBarItem?.setActive(isActive)
+            // Pause the idle monitor while a session is running (no point
+            // polling) and the settings-window live preview (no point
+            // rendering an invisible second copy that competes with the
+            // fullscreen session for main-thread / GPU time).
             self?.idleMonitor?.isEnabled = !isActive
+            self?.settingsController?.setPreviewActive(!isActive)
             if !isActive {
                 self?.idleMonitor?.resetEdgeTrigger()
             }
@@ -94,5 +111,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Idle settings → reconfigure the monitor.
         idleMonitor?.thresholdSeconds = newSettings.idleThresholdMinutes * 60
         idleMonitor?.isEnabled = newSettings.autoActivateOnIdle && session?.isActive == false
+
+        // If the change originated outside the SwiftUI form (e.g. via the
+        // B/C hotkeys during a fullscreen session), keep the form in sync
+        // without re-triggering this method.
+        settingsController?.syncFromExternal(newSettings)
     }
 }

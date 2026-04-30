@@ -7,8 +7,22 @@ import MatrixCore
 /// for input that should dismiss it.
 @MainActor
 final class MatrixSession {
+    /// Hotkey actions the session can route to the AppDelegate while a
+    /// fullscreen session is running. Letting the user toggle effects
+    /// in-place without having to dismiss → open settings → toggle →
+    /// reactivate.
+    enum Hotkey {
+        case toggleBloom
+        case toggleCRT
+    }
+
     /// Called whenever active state changes (true = showing Matrix).
     var statusObserver: ((Bool) -> Void)?
+
+    /// Called when the user hits a recognized hotkey (currently `b` or `c`)
+    /// during an active session. AppDelegate wires this to mutate
+    /// `AppSettings` and persist.
+    var onHotkey: ((Hotkey) -> Void)?
 
     private(set) var isActive: Bool = false
     private var windows: [MatrixWindow] = []
@@ -102,6 +116,9 @@ final class MatrixSession {
         var startLocation: NSPoint?
         localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: mask) { [weak self] event in
             guard let self else { return event }
+
+            // Mouse-moved jitter filter — don't dismiss on the cursor
+            // settling into position when the windows first appear.
             if event.type == .mouseMoved {
                 if startLocation == nil {
                     startLocation = NSEvent.mouseLocation
@@ -110,11 +127,28 @@ final class MatrixSession {
                 let now = NSEvent.mouseLocation
                 let dx = now.x - (startLocation?.x ?? now.x)
                 let dy = now.y - (startLocation?.y ?? now.y)
-                if dx * dx + dy * dy < 25 {
-                    // <5pt motion — ignore (cursor settling).
-                    return event
+                if dx * dx + dy * dy < 25 { return event }
+            }
+
+            // Hotkeys: unmodified `b` / `c` toggle bloom / CRT in place
+            // without dismissing the session. Anything else dismisses.
+            // Allow shift (charactersIgnoringModifiers normalizes it); block
+            // command/option/control so things like ⌘Q don't toggle CRT.
+            if event.type == .keyDown,
+               event.modifierFlags.intersection([.command, .option, .control]).isEmpty,
+               let chars = event.charactersIgnoringModifiers?.lowercased() {
+                switch chars {
+                case "b":
+                    self.onHotkey?(.toggleBloom)
+                    return nil  // swallow — don't dismiss
+                case "c":
+                    self.onHotkey?(.toggleCRT)
+                    return nil
+                default:
+                    break
                 }
             }
+
             self.deactivate()
             return event
         }

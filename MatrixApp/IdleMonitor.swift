@@ -19,9 +19,19 @@ final class IdleMonitor {
     /// Won't fire again until the user is active, then idle again.
     var onIdle: (() -> Void)?
 
-    /// Whether the monitor is enabled. Set to false while a Matrix
-    /// session is already active to avoid re-triggering.
-    var isEnabled: Bool = true
+    /// Whether the monitor is enabled. When false the timer is fully
+    /// stopped — no polling, no main-thread work — to avoid stutter
+    /// against an active render loop.
+    var isEnabled: Bool = true {
+        didSet {
+            guard isEnabled != oldValue else { return }
+            if isEnabled {
+                start()
+            } else {
+                stop()
+            }
+        }
+    }
 
     private var pollTimer: Timer?
     private var hasFiredForCurrentIdlePeriod: Bool = false
@@ -55,7 +65,6 @@ final class IdleMonitor {
     }
 
     private func tick() {
-        guard isEnabled else { return }
         let idle = IdleMonitor.systemIdleSeconds()
 
         if idle >= thresholdSeconds {
