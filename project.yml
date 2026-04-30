@@ -67,6 +67,37 @@ targets:
         NSSupportsSuddenTermination: false
         NSPrincipalClass: NSApplication
 
+  MatrixApp:
+    type: application
+    platform: macOS
+    sources:
+      - path: MatrixApp
+    dependencies:
+      - target: MatrixCore
+        embed: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.wadesellers.matrix
+        PRODUCT_NAME: Matrix
+        LD_RUNPATH_SEARCH_PATHS: "@executable_path/../Frameworks"
+        ASSETCATALOG_COMPILER_APPICON_NAME: ""
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: "0.1.0"
+    info:
+      path: MatrixApp/Info.plist
+      properties:
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        LSMinimumSystemVersion: "14.0"
+        NSHighResolutionCapable: true
+        # Menu-bar app — no Dock icon, no main menu bar item except via
+        # NSStatusItem.
+        LSUIElement: true
+        NSSupportsAutomaticTermination: false
+        NSSupportsSuddenTermination: false
+        NSPrincipalClass: NSApplication
+        NSHumanReadableCopyright: "© 2026 Wade Sellers"
+
   MatrixSaver:
     type: bundle
     platform: macOS

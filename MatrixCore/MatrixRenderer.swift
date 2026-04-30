@@ -63,16 +63,21 @@ public final class MatrixRenderer: NSObject, MTKViewDelegate {
         applyDrawableSize(size)
     }
 
+    // MTKView delegate path — used by SaverTest. Just defers to the shared
+    // implementation below.
     public func draw(in view: MTKView) {
-        // Self-heal grid sizing: drawableSizeWillChange only fires when the
-        // size *changes*, so a view created at its final size never triggers
-        // it. Sync from view.drawableSize on every frame; the work is cheap
-        // when the size already matches.
-        let actualSize = view.drawableSize
-        if actualSize.width > 0, actualSize.height > 0,
-           abs(grid.viewportSize.width - actualSize.width) > 0.5
-            || abs(grid.viewportSize.height - actualSize.height) > 0.5 {
-            applyDrawableSize(actualSize)
+        guard let drawable = view.currentDrawable else { return }
+        renderFrame(into: drawable, drawableSize: view.drawableSize)
+    }
+
+    /// Render one frame into the given drawable. Both the MTKView delegate
+    /// (SaverTest) and the layer-hosting path (MatrixSaver) call this.
+    public func renderFrame(into drawable: CAMetalDrawable, drawableSize: CGSize) {
+        // Self-heal grid sizing — cheap when sizes already match.
+        if drawableSize.width > 0, drawableSize.height > 0,
+           abs(grid.viewportSize.width - drawableSize.width) > 0.5
+            || abs(grid.viewportSize.height - drawableSize.height) > 0.5 {
+            applyDrawableSize(drawableSize)
         }
 
         let now = CACurrentMediaTime()
@@ -83,7 +88,6 @@ public final class MatrixRenderer: NSObject, MTKViewDelegate {
 
         guard let columnBuffer,
               let sceneTexture,
-              let drawable = view.currentDrawable,
               let buffer = commandQueue.makeCommandBuffer() else {
             return
         }
@@ -129,7 +133,7 @@ public final class MatrixRenderer: NSObject, MTKViewDelegate {
             sceneTexture: sceneTexture,
             target: drawable.texture,
             settings: settings,
-            viewportSize: actualSize
+            viewportSize: drawableSize
         )
 
         buffer.present(drawable)
