@@ -19,20 +19,19 @@ struct AppSettings: Equatable, Sendable {
 extension AppSettings {
     private enum Key {
         static let speedMultiplier = "matrix.speedMultiplier"
-        static let bloomEnabled = "matrix.bloomEnabled"
-        static let crtEnabled = "matrix.crtEnabled"
         static let autoActivateOnIdle = "matrix.autoActivateOnIdle"
         static let idleThresholdMinutes = "matrix.idleThresholdMinutes"
     }
 
     init(loadedFrom defaults: UserDefaults) {
+        // Bloom and CRT are always on — not user-configurable. We hardcode
+        // them to true regardless of any previously-persisted values from
+        // when they were toggleable.
         let m = MatrixSettings(
             speedMultiplier: (defaults.object(forKey: Key.speedMultiplier) as? Double).map(Float.init)
                 ?? AppSettings.defaults.matrix.speedMultiplier,
-            bloomEnabled: (defaults.object(forKey: Key.bloomEnabled) as? Bool)
-                ?? AppSettings.defaults.matrix.bloomEnabled,
-            crtEnabled: (defaults.object(forKey: Key.crtEnabled) as? Bool)
-                ?? AppSettings.defaults.matrix.crtEnabled
+            bloomEnabled: true,
+            crtEnabled: true
         )
         self.matrix = m
         self.autoActivateOnIdle = (defaults.object(forKey: Key.autoActivateOnIdle) as? Bool)
@@ -43,8 +42,6 @@ extension AppSettings {
 
     func save(to defaults: UserDefaults) {
         defaults.set(Double(matrix.speedMultiplier), forKey: Key.speedMultiplier)
-        defaults.set(matrix.bloomEnabled, forKey: Key.bloomEnabled)
-        defaults.set(matrix.crtEnabled, forKey: Key.crtEnabled)
         defaults.set(autoActivateOnIdle, forKey: Key.autoActivateOnIdle)
         defaults.set(idleThresholdMinutes, forKey: Key.idleThresholdMinutes)
     }

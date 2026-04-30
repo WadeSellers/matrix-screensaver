@@ -30,18 +30,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 NSApp.terminate(nil)
             }
         )
-        session.onHotkey = { [weak self] hotkey in
-            guard let self else { return }
-            var newSettings = self.settings
-            switch hotkey {
-            case .toggleBloom:
-                newSettings.matrix.bloomEnabled.toggle()
-            case .toggleCRT:
-                newSettings.matrix.crtEnabled.toggle()
-            }
-            self.applyAndPersist(newSettings)
-        }
-
         session.statusObserver = { [weak menuBarItem, weak self] isActive in
             menuBarItem?.setActive(isActive)
             // Pause the idle monitor while a session is running (no point

@@ -232,22 +232,6 @@ private struct SettingsView: View {
                         .monospacedDigit()
                         .frame(width: 50, alignment: .trailing)
                 }
-
-                Toggle(
-                    "Bloom glow on heads",
-                    isOn: Binding(
-                        get: { model.settings.matrix.bloomEnabled },
-                        set: { model.settings.matrix.bloomEnabled = $0 }
-                    )
-                )
-
-                Toggle(
-                    "CRT mode (scanlines + vignette)",
-                    isOn: Binding(
-                        get: { model.settings.matrix.crtEnabled },
-                        set: { model.settings.matrix.crtEnabled = $0 }
-                    )
-                )
             }
 
             Section("Auto-activate") {

@@ -8,7 +8,7 @@ public struct MatrixSettings: Equatable, Sendable {
     public init(
         speedMultiplier: Float = 1.0,
         bloomEnabled: Bool = true,
-        crtEnabled: Bool = false
+        crtEnabled: Bool = true
     ) {
         self.speedMultiplier = speedMultiplier
         self.bloomEnabled = bloomEnabled
