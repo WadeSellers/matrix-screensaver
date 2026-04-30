@@ -7,8 +7,15 @@ final class MenuBarItem {
     private let statusItem: NSStatusItem
     private let onToggle: () -> Void
 
-    init(onToggle: @escaping () -> Void, onQuit: @escaping () -> Void) {
+    private let onPreferences: () -> Void
+
+    init(
+        onToggle: @escaping () -> Void,
+        onPreferences: @escaping () -> Void,
+        onQuit: @escaping () -> Void
+    ) {
         self.onToggle = onToggle
+        self.onPreferences = onPreferences
 
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         if let button = item.button {
@@ -41,6 +48,13 @@ final class MenuBarItem {
             keyEquivalent: ""
         ))
         menu.addItem(NSMenuItem.separator())
+        let prefsItem = NSMenuItem(
+            title: "Preferences…",
+            action: #selector(triggerPreferences),
+            keyEquivalent: ","
+        )
+        prefsItem.keyEquivalentModifierMask = [.command]
+        menu.addItem(prefsItem)
         menu.addItem(NSMenuItem(
             title: "About Matrix",
             action: #selector(triggerAbout),
@@ -96,6 +110,10 @@ final class MenuBarItem {
 
     @objc private func triggerQuit() {
         onQuit?()
+    }
+
+    @objc private func triggerPreferences() {
+        onPreferences()
     }
 
     @objc private func triggerAbout() {

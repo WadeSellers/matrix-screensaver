@@ -1,16 +1,30 @@
 import Cocoa
 import MatrixCore
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuBarItem: MenuBarItem?
     private var session: MatrixSession?
     private var idleMonitor: IdleMonitor?
+    private var settingsController: SettingsWindowController?
+    private var settings: AppSettings = .defaults
+
+    private let defaults = UserDefaults.standard
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Load persisted settings.
+        settings = AppSettings(loadedFrom: defaults)
+
+        // Wire up the session, status bar, idle monitor, settings.
         let session = MatrixSession()
+        session.applySettings(settings.matrix)
+
         let menuBarItem = MenuBarItem(
             onToggle: { [weak session] in
                 session?.toggle()
+            },
+            onPreferences: { [weak self] in
+                self?.openPreferences()
             },
             onQuit: {
                 NSApp.terminate(nil)
@@ -18,10 +32,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         session.statusObserver = { [weak menuBarItem, weak self] isActive in
             menuBarItem?.setActive(isActive)
-            // Pause the idle monitor while a session is running so we don't
-            // re-fire while the user is "still idle" but already seeing
-            // Matrix. Reset the edge-trigger when the session ends so the
-            // next idle period can activate.
             self?.idleMonitor?.isEnabled = !isActive
             if !isActive {
                 self?.idleMonitor?.resetEdgeTrigger()
@@ -30,9 +40,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.session = session
         self.menuBarItem = menuBarItem
 
-        // Auto-activate after 5 minutes of HID inactivity. Configurable
-        // via the Settings window in V2.1.
-        let idleMonitor = IdleMonitor(thresholdSeconds: 5 * 60)
+        let idleMonitor = IdleMonitor(thresholdSeconds: settings.idleThresholdMinutes * 60)
+        idleMonitor.isEnabled = settings.autoActivateOnIdle
         idleMonitor.onIdle = { [weak session] in
             session?.activate()
         }
@@ -45,25 +54,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         idleMonitor?.stop()
     }
 
-    /// Handle `matrix://` URLs. Wired up via CFBundleURLTypes in Info.plist.
-    /// Supported actions:
-    ///   matrix://activate
-    ///   matrix://dismiss
-    ///   matrix://toggle
+    /// Handle `matrix://` URLs.
     func application(_ application: NSApplication, open urls: [URL]) {
         for url in urls {
             guard url.scheme == "matrix" else { continue }
             let action = url.host ?? url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
             switch action {
-            case "activate":
-                session?.activate()
-            case "dismiss":
-                session?.deactivate()
-            case "toggle":
-                session?.toggle()
+            case "activate":   session?.activate()
+            case "dismiss":    session?.deactivate()
+            case "toggle":     session?.toggle()
+            case "preferences": openPreferences()
             default:
                 NSLog("Matrix: ignoring unknown URL action '\(action)'")
             }
         }
+    }
+
+    private func openPreferences() {
+        if settingsController == nil {
+            settingsController = SettingsWindowController(
+                initial: settings,
+                onChange: { [weak self] newSettings in
+                    self?.applyAndPersist(newSettings)
+                }
+            )
+        }
+        settingsController?.show()
+    }
+
+    private func applyAndPersist(_ newSettings: AppSettings) {
+        let oldSettings = settings
+        settings = newSettings
+        newSettings.save(to: defaults)
+
+        // Renderer settings → live propagate to active session.
+        if newSettings.matrix != oldSettings.matrix {
+            session?.applySettings(newSettings.matrix)
+        }
+        // Idle settings → reconfigure the monitor.
+        idleMonitor?.thresholdSeconds = newSettings.idleThresholdMinutes * 60
+        idleMonitor?.isEnabled = newSettings.autoActivateOnIdle && session?.isActive == false
     }
 }

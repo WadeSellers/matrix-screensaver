@@ -14,7 +14,18 @@ final class MatrixSession {
     private var windows: [MatrixWindow] = []
     private var localEventMonitor: Any?
     private var screensChangedObserver: NSObjectProtocol?
-    private var settings: MatrixSettings = .defaults
+    private(set) var settings: MatrixSettings = .defaults
+
+    /// Update the renderer settings used by future activations and the
+    /// currently-running session if any. Call from the Settings window
+    /// for live-preview behavior.
+    func applySettings(_ newSettings: MatrixSettings) {
+        settings = newSettings
+        for window in windows {
+            (window.contentView as? MatrixWindowContentView)?
+                .layerHost?.settings = newSettings
+        }
+    }
 
     func toggle() {
         if isActive { deactivate() } else { activate() }
