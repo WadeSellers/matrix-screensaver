@@ -1,4 +1,5 @@
 import Cocoa
+import CoreGraphics
 import MatrixCore
 
 /// The activation state machine. Tracks whether Matrix is showing,
@@ -23,6 +24,12 @@ final class MatrixSession {
         guard !isActive else { return }
         isActive = true
 
+        // Bring our app forward so the screensaver-level windows actually
+        // become key and receive input. With LSUIElement=true we're an
+        // accessory app, so without an explicit activate we may stay
+        // backgrounded and the cursor-hide call below is a no-op.
+        NSApp.activate(ignoringOtherApps: true)
+
         // One window per screen.
         for screen in NSScreen.screens {
             let window = MatrixWindow(screen: screen)
@@ -33,6 +40,10 @@ final class MatrixSession {
             windows.append(window)
         }
 
+        // Aggressive cursor hide. NSCursor.hide() only works while the app
+        // is foreground; CGDisplayHideCursor goes through WindowServer and
+        // is reliable for fullscreen takeover scenarios. Belt-and-suspenders.
+        CGDisplayHideCursor(CGMainDisplayID())
         NSCursor.hide()
         installInputDismissMonitor()
         observeScreenChanges()
@@ -57,6 +68,7 @@ final class MatrixSession {
             window.close()
         }
         windows.removeAll()
+        CGDisplayShowCursor(CGMainDisplayID())
         NSCursor.unhide()
         statusObserver?(false)
     }
