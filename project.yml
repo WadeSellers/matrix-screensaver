@@ -98,6 +98,13 @@ targets:
         NSSupportsSuddenTermination: false
         NSPrincipalClass: NSApplication
         NSHumanReadableCopyright: "© 2026 Wade Sellers"
+        # URL scheme: matrix://activate, matrix://dismiss, matrix://toggle.
+        # Use to wire up Shortcuts.app, Raycast, Alfred, Stream Deck,
+        # Hammerspoon, AppleScript — anything that can open a URL.
+        CFBundleURLTypes:
+          - CFBundleURLName: com.wadesellers.matrix
+            CFBundleURLSchemes:
+              - matrix
 
   MatrixSaver:
     type: bundle
