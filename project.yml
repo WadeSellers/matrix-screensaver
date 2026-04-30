@@ -88,6 +88,7 @@ targets:
       properties:
         CFBundleShortVersionString: "0.1.0"
         CFBundleVersion: "1"
+        CFBundleIconFile: "AppIcon"
         LSMinimumSystemVersion: "14.0"
         NSHighResolutionCapable: true
         # Menu-bar app — no Dock icon, no main menu bar item except via
