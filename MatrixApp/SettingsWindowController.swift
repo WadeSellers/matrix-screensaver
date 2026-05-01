@@ -218,6 +218,18 @@ private struct SettingsView: View {
     var body: some View {
         Form {
             Section("Rendering") {
+                Picker(
+                    "Theme",
+                    selection: Binding(
+                        get: { model.settings.matrix.theme },
+                        set: { model.settings.matrix.theme = $0 }
+                    )
+                ) {
+                    ForEach(MatrixTheme.allPresets) { theme in
+                        Text(theme.name).tag(theme)
+                    }
+                }
+
                 HStack {
                     Text("Speed")
                         .frame(width: 80, alignment: .trailing)

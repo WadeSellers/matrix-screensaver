@@ -4,6 +4,22 @@ import MetalKit
 import QuartzCore
 import simd
 
+/// Must exactly mirror the `ColorUniforms` struct in Shaders.metal.
+/// Each SIMD4<Float> is 16 bytes, matching Metal's float4 alignment.
+private struct ColorUniforms {
+    var headColor:      SIMD4<Float>
+    var nearTrailColor: SIMD4<Float>
+    var midTrailColor:  SIMD4<Float>
+    var farTrailColor:  SIMD4<Float>
+
+    init(theme: MatrixTheme) {
+        headColor      = theme.headColor
+        nearTrailColor = theme.nearTrailColor
+        midTrailColor  = theme.midTrailColor
+        farTrailColor  = theme.farTrailColor
+    }
+}
+
 public final class MatrixRenderer: NSObject, MTKViewDelegate {
     public let device: MTLDevice
     private let commandQueue: MTLCommandQueue
@@ -116,6 +132,8 @@ public final class MatrixRenderer: NSObject, MTKViewDelegate {
             cellsPerRow: UInt32(glyphAtlas.cellsPerRow)
         )
 
+        var colorUniforms = ColorUniforms(theme: settings.theme)
+
         encoder.setRenderPipelineState(columnPipeline)
         encoder.setFragmentBytes(
             &uniforms,
@@ -123,6 +141,11 @@ public final class MatrixRenderer: NSObject, MTKViewDelegate {
             index: 0
         )
         encoder.setFragmentBuffer(columnBuffer, offset: 0, index: 1)
+        encoder.setFragmentBytes(
+            &colorUniforms,
+            length: MemoryLayout<ColorUniforms>.stride,
+            index: 2
+        )
         encoder.setFragmentTexture(glyphAtlas.texture, index: 0)
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
         encoder.endEncoding()

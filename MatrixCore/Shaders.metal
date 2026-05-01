@@ -23,6 +23,17 @@ struct GridUniforms {
     uint  cellsPerRow;
 };
 
+/// Theme colours passed from CPU every frame. Each field is float4
+/// so the struct is 64 bytes with natural alignment — no padding needed.
+/// The .w component is unused (always 0); it exists only to satisfy
+/// Metal's 16-byte alignment for float4 arrays.
+struct ColorUniforms {
+    float4 headColor;       // leading cell — e.g. #DDFFDD
+    float4 nearTrailColor;  // 1–7 cells back
+    float4 midTrailColor;   // 8–15 cells back
+    float4 farTrailColor;   // 16+ cells, fades to black
+};
+
 vertex VSOut vertex_fullscreen(uint vid [[vertex_id]]) {
     float2 pos = float2((vid << 1) & 2, vid & 2);
     VSOut out;
@@ -41,14 +52,15 @@ static uint hash3(uint a, uint b, uint c) {
     return a;
 }
 
-static float3 trailColor(float trailDist, float trailLength) {
+static float3 trailColor(float trailDist, float trailLength,
+                         constant ColorUniforms &colors) {
     if (trailDist < 0.5) {
-        return float3(0.87, 1.0, 0.87); // #DDFFDD head
+        return colors.headColor.rgb;
     }
-    constexpr float3 c1 = float3(0.0, 1.0, 0.4);     // #00FF66
-    constexpr float3 c2 = float3(0.0, 0.53, 0.2);    // #008833
-    constexpr float3 c3 = float3(0.0, 0.2, 0.067);   // #003311
-    constexpr float3 c4 = float3(0.0, 0.0, 0.0);
+    float3 c1 = colors.nearTrailColor.rgb;
+    float3 c2 = colors.midTrailColor.rgb;
+    float3 c3 = colors.farTrailColor.rgb;
+    float3 c4 = float3(0.0);
 
     float t = trailDist;
     if (t < 8.0) {
@@ -62,9 +74,10 @@ static float3 trailColor(float trailDist, float trailLength) {
 
 fragment float4 fragment_columns(
     VSOut in [[stage_in]],
-    constant GridUniforms &grid [[buffer(0)]],
-    constant ColumnState *columns [[buffer(1)]],
-    texture2d<float> glyphAtlas [[texture(0)]]
+    constant GridUniforms  &grid    [[buffer(0)]],
+    constant ColumnState   *columns [[buffer(1)]],
+    constant ColorUniforms &colors  [[buffer(2)]],
+    texture2d<float>        glyphAtlas [[texture(0)]]
 ) {
     float pixelX = in.uv.x * grid.viewportSize.x;
     float pixelY = (1.0 - in.uv.y) * grid.viewportSize.y;
@@ -101,13 +114,15 @@ fragment float4 fragment_columns(
     constexpr sampler s_atlas(filter::linear, address::clamp_to_edge);
     float alpha = glyphAtlas.sample(s_atlas, float2(atlasU, atlasV)).r;
 
-    float3 color = trailColor(trailDist, trailLength);
+    float3 color = trailColor(trailDist, trailLength, colors);
 
     bool isStammer = (s.seed % 5u) == 0u;
     if (isStammer) {
         float stammerRow = floor(fmod(float(s.seed >> 8) / 7.0, trailLength - 1.0)) + 1.0;
         if (abs(trailDist - stammerRow) < 0.5) {
-            color += float3(0.25, 0.4, 0.25);
+            // Tint the stammer slightly toward the head colour for
+            // theme-correctness rather than always adding green.
+            color += colors.headColor.rgb * 0.3;
         }
     }
 

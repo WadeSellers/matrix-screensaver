@@ -24,16 +24,9 @@ extension AppSettings {
     }
 
     init(loadedFrom defaults: UserDefaults) {
-        // Bloom and CRT are always on — not user-configurable. We hardcode
-        // them to true regardless of any previously-persisted values from
-        // when they were toggleable.
-        let m = MatrixSettings(
-            speedMultiplier: (defaults.object(forKey: Key.speedMultiplier) as? Double).map(Float.init)
-                ?? AppSettings.defaults.matrix.speedMultiplier,
-            bloomEnabled: true,
-            crtEnabled: true
-        )
-        self.matrix = m
+        // MatrixSettings.init(loadedFrom:) handles speedMultiplier, bloom,
+        // CRT (always on), and theme name → preset lookup.
+        self.matrix = MatrixSettings(loadedFrom: defaults)
         self.autoActivateOnIdle = (defaults.object(forKey: Key.autoActivateOnIdle) as? Bool)
             ?? AppSettings.defaults.autoActivateOnIdle
         self.idleThresholdMinutes = (defaults.object(forKey: Key.idleThresholdMinutes) as? Double)
@@ -41,7 +34,8 @@ extension AppSettings {
     }
 
     func save(to defaults: UserDefaults) {
-        defaults.set(Double(matrix.speedMultiplier), forKey: Key.speedMultiplier)
+        // matrix.save handles speedMultiplier + theme name.
+        matrix.save(to: defaults)
         defaults.set(autoActivateOnIdle, forKey: Key.autoActivateOnIdle)
         defaults.set(idleThresholdMinutes, forKey: Key.idleThresholdMinutes)
     }

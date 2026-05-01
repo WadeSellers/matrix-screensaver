@@ -126,16 +126,13 @@ public final class BloomPipeline {
         }
 
         var compU = CompositeUniforms(
-            // Cranked up from the original "subtle" values so the
-            // difference between on/off is obviously visible — the user
-            // shouldn't have to squint to confirm a toggle worked.
-            //   bloomStrength:   0.85 → 1.20 (head halos visibly bigger)
-            //   scanlineDarken:  0.30 → 0.45 (scanlines clearly visible)
-            //   vignetteAmount:  0.55 → 0.70 (corner falloff prominent)
-            bloomStrength: settings.bloomEnabled ? 1.20 : 0,
+            // Pull bloom and CRT parameters from the active theme so each
+            // preset can dial in its own feel (Amber CRT gets heavier
+            // scanlines, Animatrix gets a softer bloom, etc.).
+            bloomStrength: settings.bloomEnabled ? settings.theme.bloomStrength : 0,
             crtEnabled: settings.crtEnabled ? 1 : 0,
-            scanlineDarken: 0.45,
-            vignetteAmount: 0.70,
+            scanlineDarken: settings.theme.scanlineDarken,
+            vignetteAmount: settings.theme.vignetteAmount,
             viewportSize: SIMD2<Float>(
                 Float(viewportSize.width),
                 Float(viewportSize.height)
