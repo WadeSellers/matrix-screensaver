@@ -15,11 +15,7 @@ final class SettingsWindowController: NSObject {
     private let model: SettingsModel
     private let externalOnChange: (AppSettings) -> Void
 
-    init(
-        initial: AppSettings,
-        onChange: @escaping (AppSettings) -> Void,
-        onRequestKeyboardAccess: (() -> Void)? = nil
-    ) {
+    init(initial: AppSettings, onChange: @escaping (AppSettings) -> Void) {
         self.externalOnChange = onChange
         self.model = SettingsModel(initial: initial)
         super.init()
@@ -30,7 +26,6 @@ final class SettingsWindowController: NSObject {
             self.externalOnChange(newSettings)
             self.previewView?.layerHost?.settings = newSettings.matrix
         }
-        model.onRequestKeyboardAccess = onRequestKeyboardAccess
     }
 
     /// Push an externally-changed AppSettings into the model without
@@ -211,9 +206,6 @@ final class SettingsModel {
         }
     }
     var onChange: ((AppSettings) -> Void)?
-    /// Called when the user taps "Enable keyboard detection" in Settings.
-    /// Set by the controller after init.
-    var onRequestKeyboardAccess: (() -> Void)?
 
     init(initial: AppSettings) {
         self.settings = initial
@@ -222,9 +214,6 @@ final class SettingsModel {
 
 private struct SettingsView: View {
     @Bindable var model: SettingsModel
-    /// Refreshes the accessibility badge when the view appears or when
-    /// the user comes back after granting permission.
-    @State private var accessibilityGranted: Bool = IdleMonitor.isAccessibilityGranted
 
     var body: some View {
         Form {
@@ -240,14 +229,6 @@ private struct SettingsView: View {
                         Text(theme.name).tag(theme)
                     }
                 }
-
-                Toggle(
-                    "Hand-drawn glyphs",
-                    isOn: Binding(
-                        get: { model.settings.matrix.glyphStyle == .handDrawn },
-                        set: { model.settings.matrix.glyphStyle = $0 ? .handDrawn : .crisp }
-                    )
-                )
 
                 HStack {
                     Text("Speed")
@@ -290,40 +271,7 @@ private struct SettingsView: View {
                         .monospacedDigit()
                         .frame(width: 60, alignment: .trailing)
                 }
-
-                // Keyboard detection row — shows a one-time grant button
-                // when Accessibility hasn't been approved yet; shows a
-                // quiet badge once it is. The system dialog only appears
-                // when the user explicitly taps this button, never on launch.
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Keyboard detection")
-                        Text(accessibilityGranted
-                             ? "Keyboard activity also resets the idle timer."
-                             : "Without this, only mouse & scroll reset the timer.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    if accessibilityGranted {
-                        Label("Enabled", systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                            .font(.callout)
-                    } else {
-                        Button("Grant Access") {
-                            model.onRequestKeyboardAccess?()
-                            // Re-check after a brief delay so the badge
-                            // updates once the user returns from Settings.
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                accessibilityGranted = IdleMonitor.isAccessibilityGranted
-                            }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
-                    }
-                }
             }
-            .onAppear { accessibilityGranted = IdleMonitor.isAccessibilityGranted }
 
             Section {
                 Text("Live preview behind the window. Changes save automatically.")

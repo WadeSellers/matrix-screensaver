@@ -1,192 +1,218 @@
 # Matrix Roadmap
 
-This document is the long-term plan for the Matrix project. The original
-goal was a macOS screensaver. After hitting unsolvable Tahoe-era bugs in
-`legacyScreenSaver`, we pivoted to a standalone macOS app that reuses the
-existing `MatrixCore` Metal renderer.
+Long-term plan for the Matrix project. The original goal was a macOS
+screensaver. After hitting unsolvable Tahoe-era bugs in
+`legacyScreenSaver`, we pivoted to a standalone menu-bar app that
+reuses the existing `MatrixCore` Metal renderer.
 
-The `.saver` bundle still exists in the repo (`MatrixSaver/`) for nostalgia
-and as a cautionary tale, but is **deprecated**. The app is the future.
+The `.saver` bundle still exists in `MatrixSaver/` for nostalgia and as
+a cautionary tale, but is **deprecated**. The app is the path forward.
 
 ---
 
-## Phase 1 — V1: Standalone Mac App (in progress)
+## Status
+
+- ✅ **Phase 1 — V1: Standalone Mac App** — shipped
+- ✅ **Phase 2 — Activation surface + settings** — shipped, including
+  idle timer rewritten on top of `NSEvent` global monitors after
+  `IOHIDSystem.HIDIdleTime` proved unreliable on Wade's machine
+- ✅ **Phase 3 — Theme Studio** — shipped (6 presets); hand-drawn
+  variant explored and dropped — see Phase 3 notes
+- ⏳ **Phase 4 — Dynamic Wallpaper** — NEXT
+- 🎬 **Phase 5 — Scene Coalescing**
+- ⚡ **Phase 6 — Commit Flare**
+- 📡 **Phase 7 — Samsung Tablet Sync via Desk Quotes**
+- 🥚 Parked: Easter eggs, full Apple cross-device cathedral, audio
+  reactivity, notification flares (see "Open questions" at bottom)
+
+---
+
+## Phase 1 — V1: Standalone Mac App ✅
 
 The minimum viable app: launch it, get Matrix everywhere, dismiss with
-input. Half a day of focused work.
+input. Shipped.
 
-- [ ] **1.1 — Target scaffolding.** Add `MatrixApp` target to `project.yml`.
-  `LSUIElement = true` so no Dock icon. Reuses `MatrixCore` framework.
-- [ ] **1.2 — Menu bar icon.** Single `NSStatusItem` showing a small Matrix
-  glyph. Click → activate. Click again → dismiss. Right-click later for
-  preferences and quit.
-- [ ] **1.3 — Per-screen fullscreen takeover.** A `MatrixSession` class
-  manages activation state. On activate: for each `NSScreen`, create a
-  borderless `NSWindow` at `.screenSaver` level covering its full frame.
-  Each window hosts a `MatrixLayerHost` (the same Metal renderer + display
-  link we already wrote). Cursor hidden while active.
-- [ ] **1.4 — Dismiss on input.** Global `NSEvent` monitor for mouse move,
-  key down, scroll, magnify. Any input → tear down all windows, restore
-  cursor, return to idle. Status icon goes "inactive."
-- [ ] **1.5 — App icon and About box.** Real polish so it feels like an
-  app, not a hack.
-- [ ] **1.6 — Notarization-ready build pipeline.** A signed-and-notarized
-  `.app` you can drag into Applications and run without "Open Anyway."
+- [x] Target scaffolding — `MatrixApp` target, `LSUIElement = true`
+- [x] Menu bar icon — `NSStatusItem`, click + right-click menu
+- [x] Per-screen fullscreen takeover at `.screenSaver` window level
+- [x] Dismiss on input via `NSEvent` local monitor
+- [x] App icon (programmatically generated katakana stack) and About
+- [x] Ad-hoc-signed installable build via `scripts/install-app.sh`
 
-V1 ships with no settings window and no preferences — defaults baked in,
-exactly what the `.saver` bundle has now (white-green head, 1.0× speed,
-bloom on, CRT off). That's V2.1.
+## Phase 2 — Activation surface + settings ✅
 
----
+Broadened how Matrix gets triggered, plus a settings window with live
+preview. Shipped.
 
-## Phase 2 — V2: Activation surface + settings
-
-Now that the activation engine is solid, broaden how it gets triggered
-and let you tune it.
-
-- **2.1 Settings window** with live preview. Real `NSWindow` with
-  ⌘, shortcut. Sliders/toggles for speed, bloom strength, CRT, head
-  color, trail length, glyph swap rate. Changes propagate to active
-  session immediately. Settings persist via `UserDefaults`.
-- **2.2 Global keyboard shortcut.** Default ⌃⌥⌘M activates/dismisses.
-  Configurable in Preferences. Uses `NSEvent.addGlobalMonitorForEvents`
-  for the trigger, no Accessibility permission needed (just for trigger,
-  not for blocking).
-- **2.3 URL scheme.** `matrix://activate` and `matrix://dismiss`.
-  Lets you wire it up via Raycast, Alfred, Stream Deck, AppleScript,
-  Hammerspoon. One-line integration with anything that can open a URL.
-- **2.4 Hot-corner via Shortcuts.app.** Provide a Shortcuts action so
-  the user can map any hot corner (or any input) to Matrix.
-- **2.5 Idle-timer auto-launch.** Built-in idle detection via IOKit's
-  `kIOHIDIdleTimeKey`. Configurable threshold ("activate after N
-  minutes idle"). This recreates the classic screensaver behavior under
-  our control — and crucially, **works reliably** on Tahoe.
-- **2.6 Quit confirmation.** Cmd-Q from menu bar item.
+- [x] Settings window (live preview as background — Wade's idea)
+- [x] `matrix://activate` / `dismiss` / `toggle` / `preferences` URL
+  scheme — usable by Raycast, Alfred, Stream Deck, Shortcuts, scripts
+- [x] Idle-timer auto-launch via `NSEvent` global monitor (mouse,
+  scroll, gestures — keyboard intentionally excluded so the
+  Accessibility permission dialog never appears)
+- [x] Edge-triggered firing — won't re-fire until user is active again
+- [x] Auto-pause idle monitor and preview render when fullscreen
+  session is active (no double-rendering)
 
 ---
 
-## Phase 3 — V3: Themes and visual extensions
+## Phase 3 — Theme Studio ✅
 
-Hot stuff once activation is solid.
+Visible-payoff phase. Dropdown picker in Settings with film- and
+dev-themed presets. Shipped.
 
-- **3.1 Theme presets.** Drop-down in Preferences:
-  - **Classic** (movie-accurate green)
-  - **Reloaded** (more saturated, faster)
-  - **Resurrections** (red/pink tint)
-  - **CRT 1999** (heavy scanlines, low-res look, soft glow)
-  - **Cyber** (custom — neon cyan / magenta)
-- **3.2 Custom HSL color picker.** Pick your own head color, trail
-  gradient stops. Save as a named theme. Import/export theme files.
-- **3.3 Per-display config.** Different speed, bloom, theme on each
-  monitor. Lets you do "subtle on the main, blazing on the secondary"
-  setups.
-- **3.4 User glyph sets.** Drop in your own font or PNG atlas. Halloween
-  cyrillic, your kid's handwriting, Wingdings, whatever. Theme files
-  reference glyph sets so the whole package travels together.
+- [x] **3.1 — Theme model.** `MatrixTheme` struct holding color
+  triplets (head, near-trail, mid-trail, far-trail) and per-theme
+  bloom / scanline / vignette multipliers.
+- [x] **3.2 — Six presets:** `.classic`, `.reloaded`,
+  `.resurrections`, `.amberCRT`, `.animatrix`, `.solarized`.
+- [x] **3.3 — Settings dropdown.** SwiftUI `Picker` with live
+  propagation to active session and preview.
+- ❌ **3.4 — Hand-drawn variant.** Tried twice and abandoned:
+  - Path-jitter (perturb glyph Bezier control points before
+    rasterisation, fill the wobbly outline). Math worked but the 7pt
+    amplitude on a ~177pt font scaled down to ~0.6px on screen — sub-
+    pixel, invisible after texture sampling.
+  - Font swap (render the second atlas in `HiraMinProN-W3` instead of
+    `HiraginoSans-W3`). Mincho's calligraphic stroke variation is real,
+    but at the screen-size cell (~18px) it's still indistinguishable
+    from the geometric sans.
+  - Cut the feature entirely. The dual-atlas plumbing, `GlyphStyle`
+    enum, and Settings toggle are all gone. If we revisit, the right
+    next move is probably an actual handwritten font with explicit
+    coverage at the rendered size, not a derivation of a clean font.
 
----
-
-## Phase 4 — V4: Interactivity (the fun part)
-
-Things screensavers fundamentally cannot do. The Matrix becomes
-something you can poke at.
-
-- **4.1 Type-to-glyph.** Press a key while Matrix is active → that
-  character cascades down the screen as a brighter-than-normal head.
-  Type "WAKE UP" and watch it ripple through the rain.
-- **4.2 Click-to-seed.** Click anywhere → bright burst of cells radiating
-  from the cursor that fades into the rain. Hold mouse down for a
-  sustained spotlight effect.
-- **4.3 Audio reactivity.** Sample system audio output via
-  `AVAudioEngine` tap. Drive head intensity / fall speed / stammer
-  rate / per-column flash from beat detection. Music makes it dance.
-- **4.4 Konami code easter eggs.** ↑↑↓↓←→←→BA → Reloaded mode for 30s.
-  Other secret codes for other modes.
+**Acceptance:** select each preset; live preview updates instantly;
+relaunch, theme persists. ✅
 
 ---
 
-## Phase 5 — V5: System-data integration
+## Phase 4 — Dynamic Wallpaper 📦
 
-The Matrix isn't just rain — it's **your** rain, reflecting what's
-happening on your machine.
+Live, animated Matrix as the desktop. Same renderer, different host.
 
-- **5.1 Notification flares.** New macOS notification arrives → green
-  flare blooms across the screen for 2 seconds, sender's name briefly
-  visible woven into the rain.
-- **5.2 Calendar integration.** "Meeting in 5 minutes" appears as a
-  bright row of glyphs at a deterministic position. Configurable by
-  calendar.
-- **5.3 Time / weather embedding.** Subtle: real time embedded in the
-  rain at a fixed position. Weather conditions tint the rain (rainy
-  outside → faster, more density; clear → calmer, less stammer).
-- **5.4 Custom data sources via URL scheme.** `matrix://text?value=DEPLOY`
-  drops "DEPLOY" into the rain for a few seconds. Let CI pipelines
-  notify you of deploys, etc.
-- **5.5 Shortcuts.app actions.** Make Matrix scriptable. "Activate
-  Matrix when I finish a Pomodoro" becomes a 5-second Shortcut.
+- [ ] **4.1 — Wallpaper window mode.** New `MatrixWallpaperWindow`:
+  borderless, ignores mouse events, pinned at desktop window level
+  (below icons, above system wallpaper), one per `NSScreen`. Same
+  layer-hosting pattern as the screensaver windows.
+- [ ] **4.2 — Toggle in Settings.** "Use Matrix as desktop wallpaper."
+  When on, wallpaper windows live as long as the app is running. The
+  screensaver fullscreen takeover still works on top of it.
+- [ ] **4.3 — Multi-screen handling.** Watch
+  `NSApplication.didChangeScreenParametersNotification`; add/remove
+  wallpaper windows on screen plug/unplug.
+- [ ] **4.4 — Lock-screen handoff.** macOS captures the desktop
+  wallpaper as a static image for the lock screen, so a frozen Matrix
+  frame appears when locked. Animation resumes on unlock — the "boot
+  into the Matrix" feel. Document this behavior in Settings.
 
----
-
-## Phase 6 — V6: Cross-device sync (the office vision)
-
-This is the one Wade asked for: when Matrix activates on the laptop, it
-ripples to every screen in the room — the iPad on the desk, the Apple
-TV on the wall, the phone on the dock — all running synchronized
-Matrix. Office-wide takeover.
-
-- **6.1 Companion iOS / iPadOS app.** Same `MatrixCore` framework,
-  recompiled for UIKit/SwiftUI host. Renders the same Matrix on iPad
-  / iPhone screens.
-- **6.2 Local-network discovery via Bonjour / `NWConnection`.** Mac app
-  publishes a `_matrix._tcp` service on the local network. Companion
-  app listens. Devices register with each other automatically when on
-  the same WiFi.
-- **6.3 Sync protocol.** Tiny TCP/UDP messages over the local net:
-  `ACTIVATE timestamp seed` and `DISMISS`. The seed makes the rain
-  pattern identical across all devices — synchronized columns, same
-  head positions, same glyphs at the same time.
-- **6.4 Apple TV companion.** tvOS target running the same renderer.
-  Mounts as ambient art when Matrix activates.
-- **6.5 Lead/follower roles.** Leader (usually the laptop) drives
-  activation. Followers pick up the seed and replay. Optional
-  "follow-only" mode for devices that shouldn't be able to trigger
-  activation themselves.
+**Acceptance:** toggle on → desktop is live rain at 60fps. Lock screen
+shows a frozen frame. Unlock → resumes. Plug in second monitor → rain
+extends.
 
 ---
 
-## Phase 7 — V7: Distribution polish
+## Phase 5 — Scene Coalescing 🎬
 
-- **7.1 Sparkle auto-update.** Push releases via GitHub; users get
-  in-app update prompts.
-- **7.2 Mac App Store** (decision: free? paid? donations?). Tradeoff is
-  sandbox restrictions vs. distribution reach.
-- **7.3 Theme marketplace** — a `.matrixtheme` file format. People can
-  share themes via GitHub or a small website.
-- **7.4 Documentation site.** A real landing page with screenshots,
-  videos, theme gallery, install instructions. Hosted on
-  `wadesellers.com/matrix` or its own subdomain.
+Rare moments where the rain forms a recognizable still from the first
+film, then dissolves back. Uses actual film stills for the local build;
+swappable to original art if ever distributed publicly.
+
+- [ ] **5.1 — Mask shader pass.** New shader uniform: a fullscreen
+  R8 mask texture and a `coalesceStrength` float (0.0 = pure rain,
+  1.0 = fully formed image). The shader biases head selection / cell
+  brightness toward bright pixels in the mask, weighted by strength.
+- [ ] **5.2 — Curated still library.** ~6-8 high-contrast B&W mask
+  textures derived from first-film moments (Neo in the pod, the green
+  phone, "follow the white rabbit," lobby silhouette, Smith's
+  sunglasses, hallway dodge). Bundled locally; `Resources/Stills/` is
+  gitignored so they don't end up in the public repo.
+- [ ] **5.3 — Trigger logic.** Configurable interval
+  (`sceneIntervalMinutes`, default 15). On trigger: pick a random
+  still, ramp `coalesceStrength` 0 → 1 over 0.8s, hold 0.5s, ramp back
+  0.8s. Total ~2s per occurrence.
+- [ ] **5.4 — Settings toggle.** "Show film moments" on/off. Default: on.
+
+**Acceptance:** running for 15+ minutes produces at least one
+recognizable moment. Effect feels organic, not jarring. Toggling off
+fully disables it. Wade evaluates whether it ships in the public
+README/branding.
 
 ---
 
-## Architecture invariant across all phases
+## Phase 6 — Commit Flare ⚡
 
-`MatrixCore` is the renderer. It does not care about how it's hosted. It
-takes a `CAMetalDrawable` and a size, and produces frames. Every host —
-the deprecated `.saver` bundle, the upcoming Mac app, the future iOS
-companion, the future tvOS companion — just provides a different way to
-get drawables to the renderer.
+Tiny dopamine hit when you (or Claude Code on your behalf) push a git
+commit. Best paired with Phase 4 — without wallpaper mode, the flare
+only fires when the screensaver is already showing.
 
-This is why the work invested in `MatrixCore` so far transfers cleanly.
-Every phase above reuses it.
+- [ ] **6.1 — `flare` URL action.** Add `matrix://flare` → 1-second
+  white-bright accent on a single random column.
+- [ ] **6.2 — Global git hook.** `post-push` hook installed via a
+  one-shot script that calls `open matrix://flare`. Optional per-repo
+  override.
 
 ---
 
-## Open questions / blue sky
+## Phase 7 — Samsung Tablet Sync via Desk Quotes 📡
 
-- **Live wallpaper mode.** Run as desktop background instead of
-  fullscreen takeover. Productivity-friendly.
-- **Picture-in-picture window mode.** Small Matrix window in a corner
-  while you work.
-- **Recording mode.** Capture Matrix as `.mov` for video calls, slide
-  decks, screen-share backgrounds.
-- **Vision Pro / spatial mode.** When the time comes.
+The "office cathedral" delivered for Wade's actual setup: when Matrix
+activates on the Mac, the Samsung tablet's Desk Quotes display flips to
+rain. When Matrix dismisses, it returns to quotes.
+
+- [ ] **7.1 — Investigate Desk Quotes.** Read the repo, understand
+  tech stack, pick integration approach (overlay layer in Desk Quotes
+  vs. separate Matrix page the slideshow rotates to).
+- [ ] **7.2 — Cloudflare Worker relay.** ~50 lines: WebSocket pub/sub
+  keyed by a private room name. $0/mo on the free tier.
+- [ ] **7.3 — Mac broadcast hook.** `MatrixSession.statusObserver`
+  fires a fire-and-forget WebSocket message on every
+  activate/deactivate. Local change happens immediately; broadcast
+  happens in parallel.
+- [ ] **7.4 — Web Matrix port.** JS + WebGL port of `MatrixCore` for
+  the tablet. Trimmed scope: head + trail + glyph atlas, no bloom or
+  CRT (keeps tablet CPU/GPU happy).
+- [ ] **7.5 — Desk Quotes integration.** Cross-fade between quotes
+  mode and Matrix mode on state change.
+
+**Acceptance:** Mac goes idle → tablet flips to rain within ~200ms.
+Mouse movement on Mac → tablet returns to quotes within ~200ms.
+
+---
+
+## Open questions / parked
+
+Things we like but aren't building yet:
+
+- **🥚 Easter eggs.** Once-an-hour rare coherent strings ("follow the
+  white rabbit," "knock knock," "wake up Neo"); Konami-code →
+  WAKE UP NEO across all columns; one-time red pill / blue pill
+  onboarding gag in Preferences. Wade liked the idea but wants core
+  features first. Sticky in the back pocket.
+- **Full Apple cross-device cathedral.** iPad (Single App Mode), Apple
+  TV, iPhone all running `MatrixCore` and syncing via the same Worker
+  as Phase 7. Wade isn't running these as kiosk devices today. On
+  hold until office setup changes.
+- **Audio reactivity.** System audio drives column speeds / head
+  intensity. Cool, not requested.
+- **Notification flares.** Slack/email arrives → column lights up
+  with sender. Cool, not requested.
+- **Calendar awareness.** Meeting-in-5-min visual cue.
+- **Picture-in-picture window mode.** Small Matrix window while you
+  work. (Likely subsumed by wallpaper mode.)
+- **Recording mode.** Capture as `.mov` for video calls.
+- **visionOS / spatial mode.** When Wade owns one.
+
+---
+
+## Architecture invariant
+
+`MatrixCore` is the renderer. It does not care about how it's hosted.
+It takes a `CAMetalDrawable` and a size and produces frames. Every host
+— the deprecated `.saver` bundle, the current Mac app, the upcoming
+wallpaper window, the future web port — just provides a different way
+to feed it drawables.
+
+This is why work invested in `MatrixCore` transfers cleanly. Every
+phase reuses it (the web port in Phase 7 is the only one that needs a
+fresh implementation, in JS/WebGL).

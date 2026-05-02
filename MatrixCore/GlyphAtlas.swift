@@ -3,15 +3,10 @@ import CoreText
 import Foundation
 import Metal
 
+/// Renders the Matrix glyph set (mirrored half-width katakana + digits +
+/// symbols) into a single grayscale `MTLTexture`. Built once at launch.
 public final class GlyphAtlas {
-    /// Crisp CoreText rendering — Hiragino Sans W3, clean antialiased glyphs.
     public let texture: MTLTexture
-    /// Hand-drawn variant — same glyph set rendered in Hiragino Mincho ProN W3,
-    /// a calligraphic serif with natural thick/thin stroke variation that gives
-    /// characters an inked, brush-drawn quality. No post-process; the font itself
-    /// carries all the character.
-    public let wobbledTexture: MTLTexture
-
     public let glyphCount: Int
     public let cellsPerRow: Int
     public let glyphSizePx: Int
@@ -29,34 +24,26 @@ public final class GlyphAtlas {
         let cellsPerRow = Int(ceil(Double(glyphs.count).squareRoot()))
         let glyphSize   = atlasSize / cellsPerRow
 
-        // Crisp: geometric sans-serif.
-        let crispFont = CTFontCreateWithName(
-            "HiraginoSans-W3" as CFString, CGFloat(glyphSize) * 0.78, nil)
-        // Hand-drawn: calligraphic Mincho. Slightly larger scale because
-        // Mincho's ink-trap details fill the cell well at 0.80.
-        let drawnFont = CTFontCreateWithName(
-            "HiraMinProN-W3" as CFString, CGFloat(glyphSize) * 0.80, nil)
+        let font = CTFontCreateWithName(
+            "HiraginoSans-W3" as CFString,
+            CGFloat(glyphSize) * 0.78,
+            nil)
 
-        guard
-            let crispTex = GlyphAtlas.renderAtlas(
-                glyphs: glyphs, font: crispFont,
-                atlasSize: atlasSize, cellsPerRow: cellsPerRow,
-                glyphSize: glyphSize, device: device),
-            let drawnTex = GlyphAtlas.renderAtlas(
-                glyphs: glyphs, font: drawnFont,
-                atlasSize: atlasSize, cellsPerRow: cellsPerRow,
-                glyphSize: glyphSize, device: device)
-        else { return nil }
+        guard let tex = GlyphAtlas.renderAtlas(
+            glyphs: glyphs,
+            font: font,
+            atlasSize: atlasSize,
+            cellsPerRow: cellsPerRow,
+            glyphSize: glyphSize,
+            device: device
+        ) else { return nil }
 
-        self.texture        = crispTex
-        self.wobbledTexture = drawnTex
-        self.glyphCount     = glyphs.count
-        self.cellsPerRow    = cellsPerRow
-        self.glyphSizePx    = glyphSize
-        self.atlasSize      = atlasSize
+        self.texture     = tex
+        self.glyphCount  = glyphs.count
+        self.cellsPerRow = cellsPerRow
+        self.glyphSizePx = glyphSize
+        self.atlasSize   = atlasSize
     }
-
-    // MARK: - Atlas rendering
 
     private static func renderAtlas(
         glyphs: [String],
@@ -98,13 +85,13 @@ public final class GlyphAtlas {
             // Move to cell bottom-left, flip Y back to CoreText's upward axis.
             ctx.translateBy(x: cellX, y: cellY + CGFloat(glyphSize))
             ctx.scaleBy(x: 1, y: -1)
+            // Mirror katakana — matches the iconic Matrix look.
             if isKatakana {
                 ctx.translateBy(x: CGFloat(glyphSize), y: 0)
                 ctx.scaleBy(x: -1, y: 1)
             }
 
             drawGlyph(ch: ch, attrs: attrs, glyphSize: CGFloat(glyphSize), ctx: ctx)
-
             ctx.restoreGState()
         }
 
@@ -123,8 +110,6 @@ public final class GlyphAtlas {
             mipmapLevel: 0, withBytes: bytes, bytesPerRow: atlasSize)
         return tex
     }
-
-    // MARK: - Glyph drawing
 
     private static func drawGlyph(
         ch: String, attrs: CFDictionary,
