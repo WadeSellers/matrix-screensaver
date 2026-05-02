@@ -246,6 +246,19 @@ private struct SettingsView: View {
                 }
             }
 
+            Section("Desktop") {
+                Toggle(
+                    "Use Matrix as desktop wallpaper",
+                    isOn: Binding(
+                        get: { model.settings.wallpaperEnabled },
+                        set: { model.settings.wallpaperEnabled = $0 }
+                    )
+                )
+                Text("Live rain behind your icons. Pauses while a fullscreen Matrix session is active. The lock screen captures a still frame; animation resumes after unlock.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Auto-activate") {
                 Toggle(
                     "Activate when idle",

@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuBarItem: MenuBarItem?
     private var session: MatrixSession?
     private var idleMonitor: IdleMonitor?
+    private var wallpaperManager: MatrixWallpaperManager?
     private var settingsController: SettingsWindowController?
     private var settings: AppSettings = .defaults
 
@@ -15,7 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Load persisted settings.
         settings = AppSettings(loadedFrom: defaults)
 
-        // Wire up the session, status bar, idle monitor, settings.
+        // Wire up the session, status bar, idle monitor, settings, wallpaper.
         let session = MatrixSession()
         session.applySettings(settings.matrix)
 
@@ -30,14 +31,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 NSApp.terminate(nil)
             }
         )
+
+        // Wallpaper manager: starts disabled, becomes active if persisted
+        // setting says so. Owned for the lifetime of the app.
+        let wallpaperManager = MatrixWallpaperManager()
+        wallpaperManager.applySettings(settings.matrix)
+        wallpaperManager.setEnabled(settings.wallpaperEnabled)
+        self.wallpaperManager = wallpaperManager
+
         session.statusObserver = { [weak menuBarItem, weak self] isActive in
             menuBarItem?.setActive(isActive)
             // Pause the idle monitor while a session is running (no point
             // polling) and the settings-window live preview (no point
             // rendering an invisible second copy that competes with the
-            // fullscreen session for main-thread / GPU time).
+            // fullscreen session for main-thread / GPU time). Same logic
+            // for the wallpaper — it's invisible under the session.
             self?.idleMonitor?.isEnabled = !isActive
             self?.settingsController?.setPreviewActive(!isActive)
+            self?.wallpaperManager?.setSessionActive(isActive)
             if !isActive {
                 self?.idleMonitor?.resetEdgeTrigger()
             }
@@ -57,6 +68,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         session?.deactivate()
         idleMonitor?.stop()
+        wallpaperManager?.setEnabled(false)
     }
 
     /// Handle `matrix://` URLs.
@@ -92,13 +104,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settings = newSettings
         newSettings.save(to: defaults)
 
-        // Renderer settings → live propagate to active session.
+        // Renderer settings → live propagate to active session AND wallpaper.
         if newSettings.matrix != oldSettings.matrix {
             session?.applySettings(newSettings.matrix)
+            wallpaperManager?.applySettings(newSettings.matrix)
         }
         // Idle settings → reconfigure the monitor.
         idleMonitor?.thresholdSeconds = newSettings.idleThresholdMinutes * 60
         idleMonitor?.isEnabled = newSettings.autoActivateOnIdle && session?.isActive == false
+
+        // Wallpaper toggle → enable / disable the manager.
+        if newSettings.wallpaperEnabled != oldSettings.wallpaperEnabled {
+            wallpaperManager?.setEnabled(newSettings.wallpaperEnabled)
+        }
 
         // If the change originated outside the SwiftUI form (e.g. via the
         // B/C hotkeys during a fullscreen session), keep the form in sync

@@ -18,7 +18,7 @@ a cautionary tale, but is **deprecated**. The app is the path forward.
   `IOHIDSystem.HIDIdleTime` proved unreliable on Wade's machine
 - ✅ **Phase 3 — Theme Studio** — shipped (6 presets); hand-drawn
   variant explored and dropped — see Phase 3 notes
-- ⏳ **Phase 4 — Dynamic Wallpaper** — NEXT
+- ✅ **Phase 4 — Dynamic Wallpaper** — shipped
 - 🎬 **Phase 5 — Scene Coalescing**
 - ⚡ **Phase 6 — Commit Flare**
 - 📡 **Phase 7 — Samsung Tablet Sync via Desk Quotes**
@@ -87,28 +87,28 @@ relaunch, theme persists. ✅
 
 ---
 
-## Phase 4 — Dynamic Wallpaper 📦
+## Phase 4 — Dynamic Wallpaper ✅
 
-Live, animated Matrix as the desktop. Same renderer, different host.
+Live, animated Matrix as the desktop. Shipped.
 
-- [ ] **4.1 — Wallpaper window mode.** New `MatrixWallpaperWindow`:
-  borderless, ignores mouse events, pinned at desktop window level
-  (below icons, above system wallpaper), one per `NSScreen`. Same
-  layer-hosting pattern as the screensaver windows.
-- [ ] **4.2 — Toggle in Settings.** "Use Matrix as desktop wallpaper."
-  When on, wallpaper windows live as long as the app is running. The
-  screensaver fullscreen takeover still works on top of it.
-- [ ] **4.3 — Multi-screen handling.** Watch
-  `NSApplication.didChangeScreenParametersNotification`; add/remove
-  wallpaper windows on screen plug/unplug.
-- [ ] **4.4 — Lock-screen handoff.** macOS captures the desktop
-  wallpaper as a static image for the lock screen, so a frozen Matrix
-  frame appears when locked. Animation resumes on unlock — the "boot
-  into the Matrix" feel. Document this behavior in Settings.
+- [x] **4.1 — Wallpaper window mode.** `MatrixWallpaperWindow`:
+  borderless, `ignoresMouseEvents=true`, pinned at
+  `CGWindowLevelForKey(.desktopWindow)`, `canBecomeKey=false`. One per
+  `NSScreen`. Reuses `MatrixWindowContentView` for the layer-hosted
+  Metal render — same renderer, different host.
+- [x] **4.2 — Toggle in Settings.** "Use Matrix as desktop wallpaper"
+  in a new Desktop section. Persists across launches.
+- [x] **4.3 — Multi-screen handling.** `MatrixWallpaperManager`
+  observes `didChangeScreenParametersNotification`; tears down and
+  rebuilds the window set on screen plug/unplug or resolution change.
+- [x] **4.4 — Session pause.** While a fullscreen Matrix session is
+  active, the wallpaper is invisible underneath it — so the manager
+  tears down its windows during the session and rebuilds them on
+  dismissal. Saves a full second 60 fps render pass.
 
-**Acceptance:** toggle on → desktop is live rain at 60fps. Lock screen
-shows a frozen frame. Unlock → resumes. Plug in second monitor → rain
-extends.
+**Lock-screen behavior** (no code, just OS interaction): macOS captures
+the wallpaper as a static image for the lock screen, so a frozen Matrix
+frame appears on lock. Animation resumes on unlock.
 
 ---
 

@@ -8,19 +8,21 @@ struct AppSettings: Equatable, Sendable {
     var matrix: MatrixSettings
     var autoActivateOnIdle: Bool
     var idleThresholdMinutes: Double  // double so the slider can be smooth
+    var wallpaperEnabled: Bool
 
     static let defaults = AppSettings(
         matrix: .defaults,
         autoActivateOnIdle: true,
-        idleThresholdMinutes: 5
+        idleThresholdMinutes: 5,
+        wallpaperEnabled: false
     )
 }
 
 extension AppSettings {
     private enum Key {
-        static let speedMultiplier = "matrix.speedMultiplier"
-        static let autoActivateOnIdle = "matrix.autoActivateOnIdle"
-        static let idleThresholdMinutes = "matrix.idleThresholdMinutes"
+        static let autoActivateOnIdle    = "matrix.autoActivateOnIdle"
+        static let idleThresholdMinutes  = "matrix.idleThresholdMinutes"
+        static let wallpaperEnabled      = "matrix.wallpaperEnabled"
     }
 
     init(loadedFrom defaults: UserDefaults) {
@@ -31,6 +33,8 @@ extension AppSettings {
             ?? AppSettings.defaults.autoActivateOnIdle
         self.idleThresholdMinutes = (defaults.object(forKey: Key.idleThresholdMinutes) as? Double)
             ?? AppSettings.defaults.idleThresholdMinutes
+        self.wallpaperEnabled = (defaults.object(forKey: Key.wallpaperEnabled) as? Bool)
+            ?? AppSettings.defaults.wallpaperEnabled
     }
 
     func save(to defaults: UserDefaults) {
@@ -38,5 +42,6 @@ extension AppSettings {
         matrix.save(to: defaults)
         defaults.set(autoActivateOnIdle, forKey: Key.autoActivateOnIdle)
         defaults.set(idleThresholdMinutes, forKey: Key.idleThresholdMinutes)
+        defaults.set(wallpaperEnabled, forKey: Key.wallpaperEnabled)
     }
 }
