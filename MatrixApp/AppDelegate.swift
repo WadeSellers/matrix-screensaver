@@ -81,6 +81,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 initial: settings,
                 onChange: { [weak self] newSettings in
                     self?.applyAndPersist(newSettings)
+                },
+                onRequestKeyboardAccess: { [weak self] in
+                    self?.idleMonitor?.requestKeyboardAccessExplicitly()
                 }
             )
         }

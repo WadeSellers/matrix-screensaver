@@ -18,10 +18,14 @@ private let log = OSLog(subsystem: "com.wadesellers.matrix", category: "idle")
 ///
 /// Using `NSEvent` global/local monitors instead means we only see real
 /// input: mouse moves, mouse-button events, scroll wheel, gestures, and
-/// — once the user grants Accessibility — keyboard events too. We prompt
-/// for Accessibility on first `start()`. If the user denies, the mask
-/// still lists keyboard events; macOS just won't deliver them, and we
-/// fall back gracefully to mouse/scroll/gesture detection.
+/// — once the user grants Accessibility — keyboard events too.
+///
+/// **Accessibility prompt policy:** we NEVER auto-prompt. On each
+/// `start()` we silently check `AXIsProcessTrusted()` and include
+/// keyboard events only when trust is already granted. To request
+/// permission the user clicks a button in the Settings window, which
+/// calls `requestKeyboardAccessExplicitly()`. This prevents the system
+/// dialog from appearing unexpectedly after every app relaunch.
 @MainActor
 final class IdleMonitor {
     /// Seconds of inactivity required before firing.
@@ -44,7 +48,6 @@ final class IdleMonitor {
     private var globalEventMonitor: Any?
     private var localEventMonitor: Any?
     private var hasFiredForCurrentIdlePeriod: Bool = false
-    private var hasPromptedForAccessibility: Bool = false
 
     /// Monotonic timestamp of the last user input event, in
     /// `ProcessInfo.systemUptime` seconds. Updated from the `NSEvent`
@@ -56,6 +59,25 @@ final class IdleMonitor {
         self.thresholdSeconds = thresholdSeconds
     }
 
+    /// Returns true when Accessibility permission is currently granted.
+    /// Does NOT trigger a prompt.
+    static var isAccessibilityGranted: Bool {
+        AXIsProcessTrusted()
+    }
+
+    /// Explicitly request Accessibility permission by showing the system
+    /// dialog. Call this only in response to a deliberate user tap in the
+    /// Settings window — never call it automatically on launch.
+    func requestKeyboardAccessExplicitly() {
+        let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
+        let trusted = AXIsProcessTrustedWithOptions(options)
+        os_log("Accessibility prompt shown; trusted=%{public}@",
+               log: log, type: .info, trusted ? "yes" : "no")
+        // If we're already running, restart so the new event mask takes
+        // effect immediately.
+        if pollTimer != nil { start() }
+    }
+
     func start() {
         stop()
         os_log("idle monitor START threshold=%{public}.1fs",
@@ -64,21 +86,25 @@ final class IdleMonitor {
         // lastInputTime captured before the user enabled idle activation.
         lastInputTime = ProcessInfo.processInfo.systemUptime
 
-        // First start gets the Accessibility prompt so we can also see
-        // keyboard input. If denied, the rest of the events still flow.
-        requestAccessibilityIfNeeded()
+        // Silently check whether Accessibility is granted. If so, include
+        // keyboard events. If not, we still get mouse/scroll/gesture, which
+        // is sufficient for most idle scenarios.
+        let trusted = AXIsProcessTrusted()
+        os_log("Accessibility %{public}@ — keyboard events %{public}@ be tracked",
+               log: log, type: .info,
+               trusted ? "granted" : "not granted",
+               trusted ? "will" : "will NOT")
 
-        // Watch real input events. Keyboard events only deliver if the
-        // user granted Accessibility — including them in the mask is safe
-        // either way (macOS just no-ops them when we're not trusted).
-        let mask: NSEvent.EventTypeMask = [
+        var mask: NSEvent.EventTypeMask = [
             .mouseMoved,
             .leftMouseDown, .rightMouseDown, .otherMouseDown,
             .leftMouseDragged, .rightMouseDragged,
             .scrollWheel,
             .magnify, .swipe, .rotate,
-            .keyDown, .keyUp, .flagsChanged
         ]
+        if trusted {
+            mask.formUnion([.keyDown, .keyUp, .flagsChanged])
+        }
 
         // Global: events delivered to other apps. We see them, can't
         // modify them.
@@ -128,33 +154,6 @@ final class IdleMonitor {
         // Real input arrived → user is no longer idle, allow next idle
         // period to fire again.
         hasFiredForCurrentIdlePeriod = false
-    }
-
-    /// Show the system "grant Accessibility" dialog the first time the
-    /// monitor starts. Prompting again is harmless — the dialog
-    /// suppresses itself if it has already been shown — but we gate it
-    /// to one call per app launch to keep the logs tidy.
-    ///
-    /// macOS won't deliver global keyboard events to `NSEvent` monitors
-    /// without this trust. Mouse / scroll / gesture events flow either
-    /// way, so denial just means a slightly looser idle definition.
-    private func requestAccessibilityIfNeeded() {
-        guard !hasPromptedForAccessibility else { return }
-        hasPromptedForAccessibility = true
-
-        // Bypass Swift 6's complaint about reading the non-Sendable
-        // global `kAXTrustedCheckOptionPrompt`: the constant's value is
-        // documented as the literal string below, so we hardcode it.
-        let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
-        let trusted = AXIsProcessTrustedWithOptions(options)
-
-        if trusted {
-            os_log("Accessibility granted — keyboard events will be monitored",
-                   log: log, type: .info)
-        } else {
-            os_log("Accessibility NOT granted — running with mouse/scroll/gesture only. Grant in System Settings → Privacy & Security → Accessibility, then quit + relaunch Matrix.",
-                   log: log, type: .info)
-        }
     }
 
     private func tick() {
