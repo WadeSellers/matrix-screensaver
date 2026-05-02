@@ -230,6 +230,14 @@ private struct SettingsView: View {
                     }
                 }
 
+                Toggle(
+                    "Hand-drawn glyphs",
+                    isOn: Binding(
+                        get: { model.settings.matrix.glyphStyle == .handDrawn },
+                        set: { model.settings.matrix.glyphStyle = $0 ? .handDrawn : .crisp }
+                    )
+                )
+
                 HStack {
                     Text("Speed")
                         .frame(width: 80, alignment: .trailing)

@@ -4,7 +4,14 @@ import Foundation
 import Metal
 
 public final class GlyphAtlas {
+    /// Crisp CoreText rendering — normal antialiased glyphs.
     public let texture: MTLTexture
+    /// Hand-drawn variant — each glyph's pixels are displaced by a
+    /// small per-column + per-row sine-wave offset so strokes look
+    /// ink-on-paper rather than pixel-perfect. Generated once at
+    /// startup from the same rasterised source; zero per-frame cost.
+    public let wobbledTexture: MTLTexture
+
     public let glyphCount: Int
     public let cellsPerRow: Int
     public let glyphSizePx: Int
@@ -87,6 +94,7 @@ public final class GlyphAtlas {
             context.restoreGState()
         }
 
+        // ---- Shared texture descriptor ----
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(
             pixelFormat: .r8Unorm,
             width: atlasSize,
@@ -96,22 +104,131 @@ public final class GlyphAtlas {
         descriptor.usage = .shaderRead
         descriptor.storageMode = .shared
 
-        guard let texture = device.makeTexture(descriptor: descriptor),
+        guard let crispTexture = device.makeTexture(descriptor: descriptor),
               let bytes = context.data else {
             return nil
         }
 
-        texture.replace(
+        // ---- Upload crisp texture ----
+        crispTexture.replace(
             region: MTLRegionMake2D(0, 0, atlasSize, atlasSize),
             mipmapLevel: 0,
             withBytes: bytes,
             bytesPerRow: atlasSize
         )
 
-        self.texture = texture
-        self.glyphCount = glyphs.count
-        self.cellsPerRow = cellsPerRow
-        self.glyphSizePx = glyphSize
-        self.atlasSize = atlasSize
+        // ---- Build and upload wobbled texture ----
+        // Read from the original CGContext bytes and write a perturbed
+        // copy into a fresh buffer. Then upload that as the second texture.
+        let byteCount = atlasSize * atlasSize
+        var wobbled = [UInt8](repeating: 0, count: byteCount)
+
+        wobbled.withUnsafeMutableBytes { destPtr in
+            let dest = destPtr.baseAddress!.assumingMemoryBound(to: UInt8.self)
+            let src  = bytes.assumingMemoryBound(to: UInt8.self)
+            GlyphAtlas.applyWobble(
+                from: src,
+                to: dest,
+                atlasSize: atlasSize,
+                cellSize: glyphSize,
+                cellsPerRow: cellsPerRow,
+                glyphCount: glyphs.count
+            )
+        }
+
+        guard let wobbleTex = device.makeTexture(descriptor: descriptor) else {
+            return nil
+        }
+        wobbled.withUnsafeBytes { srcPtr in
+            wobbleTex.replace(
+                region: MTLRegionMake2D(0, 0, atlasSize, atlasSize),
+                mipmapLevel: 0,
+                withBytes: srcPtr.baseAddress!,
+                bytesPerRow: atlasSize
+            )
+        }
+
+        self.texture        = crispTexture
+        self.wobbledTexture = wobbleTex
+        self.glyphCount     = glyphs.count
+        self.cellsPerRow    = cellsPerRow
+        self.glyphSizePx    = glyphSize
+        self.atlasSize      = atlasSize
+    }
+
+    // MARK: - Wobble pass
+
+    /// Read pixels from `original` (crisp atlas bytes), write a
+    /// sine-displaced version into `dest`.
+    ///
+    /// Two orthogonal displacements are combined:
+    ///   • Column wobble: each pixel column x gets a y-shift driven by
+    ///     `sin(2π · x/cellSize / period + phase)`.
+    ///   • Row wobble: each pixel row y gets a smaller x-shift driven
+    ///     by a second sine at a different phase and frequency.
+    ///
+    /// Both phases are derived per-glyph using the golden ratio and e
+    /// as incommensurable multipliers so adjacent glyphs never look
+    /// identical.
+    private static func applyWobble(
+        from original: UnsafePointer<UInt8>,
+        to dest: UnsafeMutablePointer<UInt8>,
+        atlasSize: Int,
+        cellSize: Int,
+        cellsPerRow: Int,
+        glyphCount: Int
+    ) {
+        // Start with a straight copy so background / unused atlas cells
+        // stay black without needing a separate fill step.
+        memcpy(dest, original, atlasSize * atlasSize)
+
+        let yAmp    = 5.0   // pixels — vertical column displacement
+        let xAmp    = 2.5   // pixels — horizontal row displacement (subtler)
+        let period  = 0.55  // fraction of cellSize per sine cycle (~1.8 cycles)
+
+        // Scratch arrays reused across glyphs to avoid repeated allocation.
+        var yShifts = [Int](repeating: 0, count: cellSize)
+        var xShifts = [Int](repeating: 0, count: cellSize)
+
+        for glyphIdx in 0..<glyphCount {
+            let col   = glyphIdx % cellsPerRow
+            let row   = glyphIdx / cellsPerRow
+            let cellX = col * cellSize
+            let cellY = row * cellSize
+
+            // Unique phase per glyph.  Golden ratio (φ) and e spread
+            // phases so no two adjacent glyphs share a wobble pattern.
+            let phaseY = Double(glyphIdx) * 1.61803398874989 * 2.0 * .pi
+            let phaseX = Double(glyphIdx) * 2.71828182845905 * 2.0 * .pi
+
+            // Precompute shifts for this glyph — one sin() per pixel
+            // edge rather than one per interior pixel.
+            for px in 0..<cellSize {
+                let t = Double(px) / Double(cellSize)
+                yShifts[px] = Int((yAmp * sin(2 * .pi * t / period + phaseY)).rounded())
+            }
+            for py in 0..<cellSize {
+                let t = Double(py) / Double(cellSize)
+                xShifts[py] = Int((xAmp * sin(2 * .pi * t / period + phaseX)).rounded())
+            }
+
+            // Write the wobbled cell.
+            for py in 0..<cellSize {
+                let xOff = xShifts[py]
+                for px in 0..<cellSize {
+                    let destIdx = (cellY + py) * atlasSize + (cellX + px)
+
+                    let srcPx = px + xOff
+                    let srcPy = py + yShifts[px]
+
+                    if srcPx >= 0 && srcPx < cellSize &&
+                       srcPy >= 0 && srcPy < cellSize {
+                        dest[destIdx] = original[(cellY + srcPy) * atlasSize + (cellX + srcPx)]
+                    } else {
+                        dest[destIdx] = 0
+                    }
+                }
+            }
+        }
     }
 }

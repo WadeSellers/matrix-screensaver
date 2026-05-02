@@ -146,7 +146,10 @@ public final class MatrixRenderer: NSObject, MTKViewDelegate {
             length: MemoryLayout<ColorUniforms>.stride,
             index: 2
         )
-        encoder.setFragmentTexture(glyphAtlas.texture, index: 0)
+        let atlasTexture = settings.glyphStyle == .handDrawn
+            ? glyphAtlas.wobbledTexture
+            : glyphAtlas.texture
+        encoder.setFragmentTexture(atlasTexture, index: 0)
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
         encoder.endEncoding()
 
