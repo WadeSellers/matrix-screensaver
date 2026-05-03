@@ -219,6 +219,17 @@ final class SettingsModel {
 /// distinct color themes. This tile gallery shows each theme's color
 /// progression as a vertical gradient — head color at the top fading
 /// through near/mid/far trail to black, exactly like a Matrix column.
+/// Strips every Button decoration except a subtle press dim. macOS's
+/// default + `.plain` styles both render a hover/focus visual that
+/// looks identical to our explicit selection chrome, producing the
+/// "two tiles selected after I move the mouse" ghost.
+private struct ThemeTileButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.85 : 1.0)
+    }
+}
+
 private struct ThemeTile: View {
     let theme: MatrixTheme
     let isSelected: Bool
@@ -272,7 +283,12 @@ private struct ThemeTile: View {
                     .stroke(isSelected ? Color.accentColor : .clear, lineWidth: 2)
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(ThemeTileButtonStyle())
+        // Suppress macOS's automatic focus ring. Without this, the
+        // last-clicked tile retains a focus visual that's
+        // indistinguishable from our selection chrome, so two tiles
+        // appear selected on hover.
+        .focusEffectDisabled()
     }
 }
 
