@@ -1,66 +1,104 @@
-# Matrix Screensaver
+# Matrix
 
-A screen-accurate macOS screensaver that replicates the digital rain effect from *The Matrix* (1999): mirrored half-width katakana flowing in green columns down a black screen, white-green leading characters, fading green trails, occasional stammer flickers, soft bloom on the heads, optional CRT post-process.
+A standalone macOS app that brings the digital rain from *The Matrix* (1999) to your desktop, your lock screen, your menu bar, and an on-demand fullscreen takeover.
 
-![Matrix screensaver running on a MacBook Air](docs/screenshot.jpg)
+![Matrix running on a MacBook Air](docs/demo.gif)
 
-Built in Swift + Metal for macOS Sequoia (14.0+) and Apple Silicon. Runs at 60fps on a 2022 MacBook Air M2; auto-throttles to 30fps on battery or under thermal pressure.
+Built in Swift + Metal for macOS 14+ (Sequoia / Tahoe) on Apple Silicon. Mirrored half-width katakana flowing in green columns down a black screen, white-green leading characters, fading green trails, occasional stammer flickers, soft bloom on the heads, CRT scanlines and vignette. Five color themes, live previews, and a global hotkey to summon it from any app.
+
+## Features
+
+- **Fullscreen takeover** — covers every connected display, dismisses on any input
+- **Live desktop wallpaper** — animated rain behind your icons (optional)
+- **Lock-screen still** — sub-option of wallpaper; installs a per-screen Matrix still as your system wallpaper so the lock screen matches your current theme
+- **Global hotkey** — `⌃⌥⌘M` from anywhere toggles fullscreen Matrix without taking focus from your other apps
+- **Auto-activate on idle** — full screensaver-replacement behavior with a configurable threshold
+- **Animated menu-bar icon** — a tiny live render in your current theme that animates 24/7
+- **Matrix-themed popover menu** — left-click the icon to open it; the popover background is itself live Matrix in your theme
+- **Five themes** — Matrix Classic, Resurrections, Amber CRT, Animatrix, Solarized
+- **Touch ID dismiss** — tap the Touch ID button (or `⌃⌘Q`) and Matrix tears itself down behind the lock screen, so finger-unlock lands you on a clean desktop
 
 ## Install
 
-Requires Xcode 26+, Apple Silicon, and `xcodegen` (`brew install xcodegen`).
+Requires macOS 14+ (Sequoia / Tahoe) and Apple Silicon. Build from source:
 
 ```bash
+brew install xcodegen
 git clone https://github.com/WadeSellers/matrix-screensaver.git
 cd matrix-screensaver
-./scripts/install.sh
+./scripts/install-app.sh
 ```
 
-The script regenerates the Xcode project, builds Release, ad-hoc codesigns, copies the bundle to `~/Library/Screen Savers/MatrixSaver.saver`, and kills `legacyScreenSaver` so the new build picks up immediately.
-
-Open **System Settings → Screen Saver**, pick **MatrixSaver**, click **Test**.
+The script regenerates the Xcode project, builds Release, ad-hoc codesigns, and installs to `/Applications/Matrix.app`. Launch it and the Matrix icon appears in your menu bar. (No Dock icon — `LSUIElement` is set so it stays out of the way.)
 
 ### Gatekeeper note
 
-Sequoia tightened Gatekeeper. The first time you select MatrixSaver you may see "MatrixSaver can't be opened" — the bundle is ad-hoc signed, not notarized. Fix:
+The first time you launch you may see "Matrix can't be opened" — the bundle is ad-hoc signed, not notarized. **System Settings → Privacy & Security → Open Anyway**.
 
-**System Settings → Privacy & Security**, scroll down, click **Open Anyway** next to the MatrixSaver entry.
+## Usage
+
+| Action | How |
+| --- | --- |
+| Open the popover menu | **Left-click** the menu-bar icon |
+| Toggle fullscreen Matrix | **Right-click** (or **control-click**) the icon — the easter-egg shortcut |
+| Toggle from anywhere | **⌃⌥⌘M** (works in any app, even fullscreen) |
+| Open Preferences | **Left-click → Preferences…** |
+| Dismiss fullscreen | Any mouse move, click, scroll, key press, gesture |
+| Dismiss to a clean desktop | Touch ID tap or `⌃⌘Q` (locks → Matrix tears down behind the lock screen → fingerprint-unlock lands on plain desktop) |
+
+`matrix://` URL scheme is also wired up: `matrix://activate`, `matrix://dismiss`, `matrix://toggle`, `matrix://preferences`. Useful for Raycast, Alfred, Stream Deck, AppleScript, Hammerspoon — anything that can open a URL.
 
 ## Configure
 
-Click **Screen Saver Options…** in System Settings.
+Open Preferences from the popover. The form sits over a live Matrix preview that updates as you change settings.
 
-- **Speed** — global multiplier from 0.5× to 2.0×.
-- **Bloom glow on heads** — soft halo around white-green leading characters. On by default.
-- **CRT mode** — adds horizontal scanlines and a soft radial vignette. Off by default.
+**Rendering**
+- **Theme** — gallery of color presets, click a tile to switch
+- **Speed** — global multiplier from 0.25× to 3.0×
 
-Settings persist in `ScreenSaverDefaults` per the bundle module name.
+**Desktop**
+- **Use Matrix as desktop wallpaper** — live animated rain behind your icons. Pauses while a fullscreen Matrix session is active so the GPU isn't rendering twice.
+- **Also show on lock screen** — sub-option; installs a per-screen Matrix still as the system wallpaper so the lock screen shows Matrix in your current theme. Captures your previous wallpaper on first install and restores it on toggle-off.
 
-## Iteration
+**Activation**
+- **Toggle anywhere** — the global hotkey (display-only for now)
+- **Activate when idle** — auto-fire after the threshold
+- **Idle threshold** — 1–30 minutes
 
-`SaverTest` is a regular macOS app target that hosts the same `MatrixView` in an `NSWindow` — much faster to iterate against than reinstalling the `.saver` and re-triggering System Settings on every change.
-
-```bash
-xcodegen generate
-xcodebuild -scheme SaverTest -configuration Debug -derivedDataPath build build
-open build/Build/Products/Debug/SaverTest.app
-```
-
-In SaverTest:
-- **⌘N** new window (test multi-renderer isolation)
-- **⌘T** toggle CRT
-- **⌘B** toggle bloom
-- **⌘-** / **⌘=** slower / faster
+Settings persist in `UserDefaults`. Theme is keyed by name so reordering presets doesn't lose your selection.
 
 ## Architecture
 
-Three Xcode targets generated from `project.yml`:
+```
+MatrixCore (framework)
+├─ MatrixRenderer       Metal renderer — column pass + bloom + CRT composite
+├─ GlyphAtlas           2048×2048 R8 atlas built once via CoreText
+├─ Shaders.metal        Fullscreen-triangle column shader, bloom, composite
+├─ BloomPipeline        Half-res ping-pong, two-pass separable Gaussian
+├─ MatrixTheme          Color triplets + per-theme bloom/CRT multipliers
+├─ MatrixSettings       Speed, theme, etc. — persisted via UserDefaults
+└─ MatrixLayerHost      CAMetalLayer + display link, used by every host
 
-| Target | Type | What |
-| --- | --- | --- |
-| `MatrixCore` | macOS framework | Renderer, glyph atlas, shaders, post-process. Shared. |
-| `SaverTest` | macOS app | Iteration host; mirrors per-screen renderer model. |
-| `MatrixSaver` | `.saver` bundle | Ships to `~/Library/Screen Savers/`. |
+MatrixApp (the app)
+├─ AppDelegate          Wires the singletons: session, idle monitor,
+│                       wallpaper manager, system wallpaper, hotkey, menu
+├─ MatrixSession        Fullscreen activation state machine (1 window /
+│                       NSScreen, dismiss-on-input monitor, screen-lock
+│                       observer)
+├─ MatrixWindow         Borderless screensaver-level NSWindow per display
+├─ MatrixWallpaperWindow Borderless desktop-level NSWindow per display
+├─ MatrixWallpaperManager Per-screen wallpaper window lifecycle
+├─ SystemWallpaperManager Renders a per-screen Matrix still and installs
+│                       it via NSWorkspace.setDesktopImageURL
+├─ IdleMonitor          NSEvent global monitors → idle detection
+├─ GlobalHotKeyManager  Carbon RegisterEventHotKey for ⌃⌥⌘M
+├─ MenuBarItem          NSStatusItem with a programmatically rendered
+│                       animated Matrix icon (10fps CGContext draws)
+├─ MenuPopover          Custom NSPopover with live Matrix render behind
+│                       SwiftUI menu rows
+└─ SettingsWindowController SwiftUI settings form sitting over a live
+                        Matrix preview
+```
 
 ### Render pipeline
 
@@ -70,39 +108,20 @@ columns ──► sceneTexture ──► [extract] ──► [blur H] ──► 
                                         bloomA / bloomB (half-res ping-pong)
 ```
 
-- **Column shader** (`fragment_columns`): one fullscreen-triangle pass. For each fragment, derives `(col, row)` from pixel coords, looks up the column's `headRow` from a per-column buffer, computes `trailDist = headRow - row`, and emits the color from a piecewise gradient (#DDFFDD head → #00FF66 → #008833 → #003311 → black). Per-cell glyph index is `hash3(col, row, seed ^ frameBucket) mod glyphCount`; trail glyphs are stable per `(col, row, seed)`, head glyphs cycle every 3 frames.
-- **Glyph atlas** (`GlyphAtlas`): 2048×2048 R8 single-channel texture built once at startup. ~64 glyphs from mirrored half-width katakana + Latin digits + symbols, rendered via Core Text + Hiragino Sans into a flipped CGContext. Mirroring the katakana is what produces the "alien" Matrix look.
-- **Bloom** (`BloomPipeline`): half-resolution ping-pong. Threshold extract pulls only pixels above luminance 0.55 (so heads bloom but trails don't smear). Two-pass separable 9-tap Gaussian. Composite adds at 0.85 strength.
-- **CRT post-process**: bundled into `fragment_bloom_composite` as a uniform-driven optional path. Crisp every-6-pixel scanlines, radial vignette.
+- **Column shader** (`fragment_columns`): one fullscreen-triangle pass. Per fragment, derives `(col, row)` from pixel coords, looks up the column's `headRow` from a per-column buffer, computes `trailDist = headRow - row`, emits color from a per-theme piecewise gradient (head → near-trail → mid-trail → far-trail → black). Per-cell glyph index is `hash3(col, row, seed ^ frameBucket) mod glyphCount`.
+- **Glyph atlas**: built once at startup. Mirrored half-width katakana + Latin digits + symbols, rendered via CoreText + Hiragino Sans into a flipped CGContext. Mirroring is what produces the iconic "alien" Matrix look.
+- **Bloom** (`BloomPipeline`): half-resolution ping-pong. Threshold extract pulls only pixels above a luminance cutoff so heads bloom but trails don't smear. Two-pass separable 9-tap Gaussian. Composite adds at theme-driven strength.
+- **CRT post-process**: bundled into `fragment_bloom_composite` as a uniform-driven optional path. Crisp every-N-pixel scanlines, radial vignette.
+- **Per-screen state is automatic** — every host (fullscreen, wallpaper, settings preview, popover preview) creates its own `MatrixRenderer` instance. No shared mutable state.
 
-### Lifecycle
+### Why standalone app instead of a `.saver` bundle?
 
-- `MatrixSaverView` (`ScreenSaverView` subclass) listens for `com.apple.screensaver.willstop` distributed notifications and calls `exit(0)` — Sonoma's `stopAnimation()` is unreliable.
-- `MatrixView` observes `ProcessInfo.thermalStateDidChangeNotification`, `NSWorkspace.willSleepNotification`, and `NSWorkspace.didWakeNotification`. Pauses on sleep, unpauses on wake, drops framerate via `PowerProfile`:
-  - `nominal` (plugged + cool) → 60fps, full bloom
-  - `balanced` (battery or `.fair` thermal) → 30fps, full bloom
-  - `low` (`.serious` / `.critical` thermal) → 20fps, no bloom
-- Per-screen state is automatic — macOS instantiates one `ScreenSaverView` per `NSScreen`, and each one creates its own `MatrixView` + `MatrixRenderer` (no shared mutable state).
+The original goal was a System Settings → Screen Saver bundle. It hit two unsolvable Tahoe-era bugs in `legacyScreenSaver`'s window management:
 
-## Known limitations
+- Multi-display: `legacyScreenSaver` instantiated `ScreenSaverView`s for secondary displays at coordinates that didn't intersect any `NSScreen`, so frames never reached the panel. Workarounds were silently reverted by the framework — the OS owns window placement here and ignores plugins.
+- Intermittent black screen: the framework would sometimes spawn 2–3 `ScreenSaverView` instances per activation with one or two mounted in zero-size windows, and macOS would arbitrarily pick which to display.
 
-These are all the same underlying macOS Sequoia/Tahoe bug in `legacyScreenSaver`'s window management — Apple's own savers use a separate `.appex` API that's not exposed to third parties.
-
-- **Multi-display: only the primary screen renders.** On Sequoia (15) and Tahoe (26), `legacyScreenSaver` instantiates a `ScreenSaverView` for each connected display but mounts the secondary display's window at coordinates that don't intersect any `NSScreen`, so the rendered frames never reach the panel. Diagnosed via `os_log` + multi-display testing. Attempted workaround in code (`window.setFrame` to the matching `NSScreen`'s origin) gets silently reverted by the framework — the OS owns window placement here and ignores plugins.
-- **Intermittent black screen on the primary display.** The same framework will sometimes spawn 2–3 `ScreenSaverView` instances per activation, with one or two of them mounted in zero-size windows. macOS picks which window is visible more or less arbitrarily; if it picks a zero-size phantom instead of the real one, you get a black screen instead of rain. Sometimes works on first try, sometimes doesn't.
-
-### Workarounds
-
-When the screensaver shows black instead of rain, in order of friction:
-
-1. **Quick reset** (usually fixes it on the next trigger):
-   ```bash
-   killall legacyScreenSaver
-   ```
-   Then re-trigger the screensaver. Often the framework picks the working window the second time.
-2. **Log out and back in** — resets macOS's per-display window graph durably.
-3. **Disconnect the external before walking away** — removes the multi-display ambiguity.
-4. **Use display sleep instead.** System Settings → Lock Screen → "Turn display off when inactive" → short interval. Reliable, just not as cool.
+Apple's own savers use a separate `.appex` Screen Saver Extension API that isn't exposed to third parties on Sequoia/Tahoe. Rather than fight the legacy framework, this project pivoted to a standalone menu-bar app that uses its own `NSWindow`s at `.screenSaver` window level — same visual outcome, none of the framework bugs. The deprecated `MatrixSaver/` bundle is still in the repo as a cautionary tale but isn't built or installed by the app script.
 
 ## Visual reference
 
@@ -110,4 +129,4 @@ Color stops, fall speed, glyph swap rate, and trail length come from [carlnewton
 
 ## License
 
-TBD. The code is yours to read; the `Hiragino Sans` font is shipped with macOS and used at runtime via Core Text (no font is bundled in this repo).
+TBD. The code is yours to read; the Hiragino Sans font is shipped with macOS and used at runtime via Core Text (no font is bundled in this repo).
