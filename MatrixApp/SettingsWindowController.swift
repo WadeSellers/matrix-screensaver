@@ -60,7 +60,7 @@ final class SettingsWindowController: NSObject {
             return
         }
 
-        let frameRect = NSRect(x: 0, y: 0, width: 460, height: 460)
+        let frameRect = NSRect(x: 0, y: 0, width: 480, height: 520)
 
         // Two sibling subviews inside a regular content view:
         //   - preview (layer-hosting, has the CAMetalLayer)
@@ -212,98 +212,174 @@ final class SettingsModel {
     }
 }
 
+// MARK: - Theme tile / gallery (custom theme picker)
+
+/// SwiftUI's stock `Picker` only renders text in its menu, which is a
+/// tragic affordance for an app whose entire identity is six visually
+/// distinct color themes. This tile gallery shows each theme's color
+/// progression as a vertical gradient — head color at the top fading
+/// through near/mid/far trail to black, exactly like a Matrix column.
+private struct ThemeTile: View {
+    let theme: MatrixTheme
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                LinearGradient(
+                    colors: [
+                        theme.headColor.color,
+                        theme.nearTrailColor.color,
+                        theme.midTrailColor.color,
+                        theme.farTrailColor.color,
+                        .black
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(width: 48, height: 36)
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(.white.opacity(0.08), lineWidth: 0.5)
+                )
+
+                Text(theme.name)
+                    .font(.caption2)
+                    .foregroundStyle(isSelected ? .primary : .secondary)
+                    .lineLimit(1)
+            }
+            .padding(.vertical, 4)
+            .padding(.horizontal, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(isSelected ? Color.accentColor : .clear, lineWidth: 2)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct ThemeGallery: View {
+    @Binding var selection: MatrixTheme
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 2) {
+                ForEach(MatrixTheme.allPresets) { theme in
+                    ThemeTile(
+                        theme: theme,
+                        isSelected: theme == selection,
+                        action: { selection = theme }
+                    )
+                }
+            }
+        }
+    }
+}
+
+private extension SIMD4 where Scalar == Float {
+    /// Treat .x/.y/.z as sRGB-normalised RGB (which is how MatrixTheme
+    /// stores them); .w is the unused alignment-padding slot.
+    var color: Color {
+        Color(red: Double(x), green: Double(y), blue: Double(z))
+    }
+}
+
+// MARK: - Settings form
+
 private struct SettingsView: View {
     @Bindable var model: SettingsModel
 
+    private var appVersion: String {
+        let v = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        return v ?? "0.1"
+    }
+
     var body: some View {
         Form {
-            Section("Rendering") {
-                Picker(
-                    "Theme",
-                    selection: Binding(
+            Section {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Theme")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                    ThemeGallery(selection: Binding(
                         get: { model.settings.matrix.theme },
                         set: { model.settings.matrix.theme = $0 }
-                    )
-                ) {
-                    ForEach(MatrixTheme.allPresets) { theme in
-                        Text(theme.name).tag(theme)
-                    }
+                    ))
                 }
 
-                HStack {
-                    Text("Speed")
-                        .frame(width: 80, alignment: .trailing)
-                    Slider(
-                        value: Binding(
+                LabeledContent("Speed") {
+                    HStack(spacing: 8) {
+                        Slider(value: Binding(
                             get: { Double(model.settings.matrix.speedMultiplier) },
                             set: { model.settings.matrix.speedMultiplier = Float($0) }
-                        ),
-                        in: 0.25...3.0
-                    )
-                    Text(String(format: "%.2f×", model.settings.matrix.speedMultiplier))
-                        .monospacedDigit()
-                        .frame(width: 50, alignment: .trailing)
+                        ), in: 0.25...3.0)
+                        Text(String(format: "%.2f×", model.settings.matrix.speedMultiplier))
+                            .monospacedDigit()
+                            .frame(width: 50, alignment: .trailing)
+                    }
                 }
-            }
-
-            Section("Desktop") {
-                Toggle(
-                    "Use Matrix as desktop wallpaper",
-                    isOn: Binding(
-                        get: { model.settings.wallpaperEnabled },
-                        set: { model.settings.wallpaperEnabled = $0 }
-                    )
-                )
-                Text("Live animated rain behind your icons. Pauses while a fullscreen Matrix session is active.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                Toggle(
-                    "Also show on lock screen",
-                    isOn: Binding(
-                        get: { model.settings.lockScreenEnabled },
-                        set: { model.settings.lockScreenEnabled = $0 }
-                    )
-                )
-                .disabled(!model.settings.wallpaperEnabled)
-                .padding(.leading, 16)
-                Text("Installs a Matrix still as your system wallpaper so the lock screen matches your current theme.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.leading, 16)
-            }
-
-            Section("Auto-activate") {
-                Toggle(
-                    "Activate when idle",
-                    isOn: Binding(
-                        get: { model.settings.autoActivateOnIdle },
-                        set: { model.settings.autoActivateOnIdle = $0 }
-                    )
-                )
-
-                HStack {
-                    Text("Idle threshold")
-                        .frame(width: 110, alignment: .trailing)
-                    Slider(
-                        value: Binding(
-                            get: { model.settings.idleThresholdMinutes },
-                            set: { model.settings.idleThresholdMinutes = $0 }
-                        ),
-                        in: 1...30,
-                        step: 1
-                    )
-                    .disabled(!model.settings.autoActivateOnIdle)
-                    Text("\(Int(model.settings.idleThresholdMinutes)) min")
-                        .monospacedDigit()
-                        .frame(width: 60, alignment: .trailing)
-                }
+            } header: {
+                Label("Rendering", systemImage: "paintbrush.fill")
             }
 
             Section {
-                Text("Live preview behind the window. Changes save automatically.")
+                Toggle("Use Matrix as desktop wallpaper", isOn: Binding(
+                    get: { model.settings.wallpaperEnabled },
+                    set: { model.settings.wallpaperEnabled = $0 }
+                ))
+
+                Toggle("Also show on lock screen", isOn: Binding(
+                    get: { model.settings.lockScreenEnabled },
+                    set: { model.settings.lockScreenEnabled = $0 }
+                ))
+                .disabled(!model.settings.wallpaperEnabled)
+                Text("Lock screen will show a still of your current theme.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            } header: {
+                Label("Desktop", systemImage: "desktopcomputer")
+            }
+
+            Section {
+                Toggle("Activate when idle", isOn: Binding(
+                    get: { model.settings.autoActivateOnIdle },
+                    set: { model.settings.autoActivateOnIdle = $0 }
+                ))
+
+                LabeledContent("Idle threshold") {
+                    HStack(spacing: 8) {
+                        Slider(value: Binding(
+                            get: { model.settings.idleThresholdMinutes },
+                            set: { model.settings.idleThresholdMinutes = $0 }
+                        ), in: 1...30, step: 1)
+                        .disabled(!model.settings.autoActivateOnIdle)
+                        Text("\(Int(model.settings.idleThresholdMinutes)) min")
+                            .monospacedDigit()
+                            .frame(width: 50, alignment: .trailing)
+                    }
+                }
+            } header: {
+                Label("Auto-activate", systemImage: "clock.fill")
+            }
+
+            Section {
+                HStack {
+                    Text("Changes save automatically.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("v\(appVersion)")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .monospacedDigit()
+                    Button("Reset to Defaults") {
+                        model.settings = .defaults
+                    }
+                    .controlSize(.small)
+                }
             }
         }
         .formStyle(.grouped)
