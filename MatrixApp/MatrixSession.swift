@@ -14,7 +14,33 @@ final class MatrixSession {
     private var windows: [MatrixWindow] = []
     private var localEventMonitor: Any?
     private var screensChangedObserver: NSObjectProtocol?
+    private var screenLockedObserver: NSObjectProtocol?
     private(set) var settings: MatrixSettings = .defaults
+
+    init() {
+        // The Touch ID button isn't exposed as a normal key event (it's
+        // wired straight through Secure Enclave), so we can't see the
+        // press. We CAN see what tapping it triggers — a screen lock —
+        // and dismiss Matrix on that. Net effect: tap Touch ID → screen
+        // locks for a beat → Matrix tears down → finger-unlock lands on
+        // a clean desktop. Same flow for ⌃⌘Q (macOS's lock shortcut).
+        screenLockedObserver = DistributedNotificationCenter.default().addObserver(
+            forName: NSNotification.Name("com.apple.screenIsLocked"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, self.isActive else { return }
+                self.deactivate()
+            }
+        }
+    }
+
+    // No deinit: MatrixSession is a singleton owned by AppDelegate for
+    // the lifetime of the process. The distributed-notification observer
+    // is cleaned up automatically when the process exits. Swift 6 strict
+    // concurrency disallows touching @MainActor state from a non-isolated
+    // deinit anyway.
 
     /// Update the renderer settings used by future activations and the
     /// currently-running session if any. Call from the Settings window
