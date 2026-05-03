@@ -299,12 +299,16 @@ final class MenuBarItem: NSObject {
 
     @objc private func buttonClicked(_ sender: NSStatusBarButton) {
         let event = NSApp.currentEvent
-        let wantsMenu = event?.type == .rightMouseUp
+        // Left-click opens the popover (the standard macOS menu-bar
+        // convention). Right-click (or control-click) is a power-user
+        // shortcut that toggles fullscreen Matrix directly without
+        // opening the menu — the "easter egg" path.
+        let wantsActivate = event?.type == .rightMouseUp
             || event?.modifierFlags.contains(.control) == true
-        if wantsMenu {
-            togglePopover()
-        } else {
+        if wantsActivate {
             onToggle()
+        } else {
+            togglePopover()
         }
     }
 
