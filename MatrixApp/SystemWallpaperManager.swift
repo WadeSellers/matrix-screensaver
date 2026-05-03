@@ -44,9 +44,15 @@ final class SystemWallpaperManager {
         }
 
         let dir = stillDirectory()
+        // Unique-per-call filename. macOS caches the wallpaper image keyed
+        // by URL, so writing fresh bytes to the SAME URL doesn't trigger a
+        // re-read — the lock screen would keep showing the previous theme.
+        // A new URL each time forces a refresh; we sweep stale files at
+        // the end so App Support doesn't accumulate.
+        let timestamp = Int(Date().timeIntervalSince1970 * 1000)
         for screen in NSScreen.screens {
             let id = screen.displayIDString
-            let url = dir.appendingPathComponent("matrix-\(id).png")
+            let url = dir.appendingPathComponent("matrix-\(id)-\(timestamp).png")
             do {
                 try renderStill(renderer: renderer,
                                 settings: settings,
@@ -54,8 +60,9 @@ final class SystemWallpaperManager {
                                 device: device,
                                 to: url)
                 try NSWorkspace.shared.setDesktopImageURL(url, for: screen, options: [:])
-                os_log("installed Matrix still on screen %{public}@",
-                       log: log, type: .info, id)
+                deleteStaleStills(for: id, except: url)
+                os_log("installed Matrix still on screen %{public}@ → %{public}@",
+                       log: log, type: .info, id, url.lastPathComponent)
             } catch {
                 os_log("install failed on screen %{public}@: %{public}@",
                        log: log, type: .error, id, String(describing: error))
@@ -63,6 +70,21 @@ final class SystemWallpaperManager {
         }
 
         defaults.set(true, forKey: Key.isInstalled)
+    }
+
+    /// Remove any `matrix-<id>-*.png` for the given screen except the
+    /// one we just wrote. Keeps Application Support tidy across many
+    /// theme changes.
+    private func deleteStaleStills(for displayID: String, except keep: URL) {
+        let dir = stillDirectory()
+        guard let contents = try? FileManager.default.contentsOfDirectory(
+            at: dir,
+            includingPropertiesForKeys: nil
+        ) else { return }
+        let prefix = "matrix-\(displayID)-"
+        for url in contents where url.lastPathComponent.hasPrefix(prefix) && url != keep {
+            try? FileManager.default.removeItem(at: url)
+        }
     }
 
     /// Revert each screen to the URL we captured before installing.

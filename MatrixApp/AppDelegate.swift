@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var session: MatrixSession?
     private var idleMonitor: IdleMonitor?
     private var wallpaperManager: MatrixWallpaperManager?
+    private let systemWallpaperManager = SystemWallpaperManager()
     private var settingsController: SettingsWindowController?
     private var settings: AppSettings = .defaults
 
@@ -32,12 +33,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         )
 
-        // Wallpaper manager: starts disabled, becomes active if persisted
-        // setting says so. Owned for the lifetime of the app.
+        // Live-window wallpaper manager. Static-image side is handled
+        // separately via systemWallpaperManager so the two toggles are
+        // independent under the hood.
         let wallpaperManager = MatrixWallpaperManager()
         wallpaperManager.applySettings(settings.matrix)
         wallpaperManager.setEnabled(settings.wallpaperEnabled)
         self.wallpaperManager = wallpaperManager
+
+        // System wallpaper still — install on launch if the persisted
+        // sub-toggle is on. This regenerates fresh PNGs every launch, so
+        // the lock screen always tracks the most recent theme even if
+        // the user changed wallpapers in System Settings while we were
+        // closed.
+        if settings.lockScreenStillActive {
+            systemWallpaperManager.installMatrixStill(settings: settings.matrix)
+        }
 
         session.statusObserver = { [weak menuBarItem, weak self] isActive in
             menuBarItem?.setActive(isActive)
@@ -69,6 +80,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         session?.deactivate()
         idleMonitor?.stop()
         wallpaperManager?.setEnabled(false)
+        // Note: we do NOT restore the wallpaper on quit. The user may
+        // want our still to survive across app restarts (it's their
+        // chosen wallpaper). Restore only happens on explicit toggle-off.
     }
 
     /// Handle `matrix://` URLs.
@@ -113,9 +127,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         idleMonitor?.thresholdSeconds = newSettings.idleThresholdMinutes * 60
         idleMonitor?.isEnabled = newSettings.autoActivateOnIdle && session?.isActive == false
 
-        // Wallpaper toggle → enable / disable the manager.
+        // Wallpaper toggle → enable / disable the live-window manager.
         if newSettings.wallpaperEnabled != oldSettings.wallpaperEnabled {
             wallpaperManager?.setEnabled(newSettings.wallpaperEnabled)
+        }
+
+        // System-wallpaper still: gated on BOTH toggles. Cascade is built
+        // into AppSettings.lockScreenStillActive (= wallpaperEnabled &&
+        // lockScreenEnabled), so turning wallpaper off automatically
+        // reverts the still without losing the user's lockScreenEnabled
+        // preference.
+        let wasActive = oldSettings.lockScreenStillActive
+        let isActive  = newSettings.lockScreenStillActive
+        let themeChanged = newSettings.matrix.theme != oldSettings.matrix.theme
+
+        if isActive && (!wasActive || themeChanged) {
+            // Either we're newly active, or the theme changed while
+            // active — render and install fresh PNGs. (The unique
+            // timestamped filename inside the manager bypasses the
+            // wallpaper URL cache so the lock screen actually refreshes.)
+            systemWallpaperManager.installMatrixStill(settings: newSettings.matrix)
+        } else if wasActive && !isActive {
+            // Newly inactive — put the user's original wallpaper back.
+            systemWallpaperManager.restorePreviousWallpapers()
         }
 
         // If the change originated outside the SwiftUI form (e.g. via the

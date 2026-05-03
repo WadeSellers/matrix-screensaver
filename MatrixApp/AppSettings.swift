@@ -9,12 +9,22 @@ struct AppSettings: Equatable, Sendable {
     var autoActivateOnIdle: Bool
     var idleThresholdMinutes: Double  // double so the slider can be smooth
     var wallpaperEnabled: Bool
+    /// Sub-option of wallpaper: when both are on, we install a per-screen
+    /// Matrix still as the macOS system wallpaper so the lock screen
+    /// shows Matrix instead of the user's previous wallpaper. When
+    /// wallpaper is off, this preference is preserved but has no effect.
+    var lockScreenEnabled: Bool
+
+    /// True iff the static Matrix PNG should currently be installed as
+    /// the system wallpaper. Both toggles must be on.
+    var lockScreenStillActive: Bool { wallpaperEnabled && lockScreenEnabled }
 
     static let defaults = AppSettings(
         matrix: .defaults,
         autoActivateOnIdle: true,
         idleThresholdMinutes: 5,
-        wallpaperEnabled: false
+        wallpaperEnabled: false,
+        lockScreenEnabled: false
     )
 }
 
@@ -23,6 +33,7 @@ extension AppSettings {
         static let autoActivateOnIdle    = "matrix.autoActivateOnIdle"
         static let idleThresholdMinutes  = "matrix.idleThresholdMinutes"
         static let wallpaperEnabled      = "matrix.wallpaperEnabled"
+        static let lockScreenEnabled     = "matrix.lockScreenEnabled"
     }
 
     init(loadedFrom defaults: UserDefaults) {
@@ -35,6 +46,8 @@ extension AppSettings {
             ?? AppSettings.defaults.idleThresholdMinutes
         self.wallpaperEnabled = (defaults.object(forKey: Key.wallpaperEnabled) as? Bool)
             ?? AppSettings.defaults.wallpaperEnabled
+        self.lockScreenEnabled = (defaults.object(forKey: Key.lockScreenEnabled) as? Bool)
+            ?? AppSettings.defaults.lockScreenEnabled
     }
 
     func save(to defaults: UserDefaults) {
@@ -43,5 +56,6 @@ extension AppSettings {
         defaults.set(autoActivateOnIdle, forKey: Key.autoActivateOnIdle)
         defaults.set(idleThresholdMinutes, forKey: Key.idleThresholdMinutes)
         defaults.set(wallpaperEnabled, forKey: Key.wallpaperEnabled)
+        defaults.set(lockScreenEnabled, forKey: Key.lockScreenEnabled)
     }
 }

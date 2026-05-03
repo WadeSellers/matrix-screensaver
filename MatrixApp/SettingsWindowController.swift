@@ -254,9 +254,23 @@ private struct SettingsView: View {
                         set: { model.settings.wallpaperEnabled = $0 }
                     )
                 )
-                Text("Live rain behind your icons. Pauses while a fullscreen Matrix session is active. The lock screen captures a still frame; animation resumes after unlock.")
+                Text("Live animated rain behind your icons. Pauses while a fullscreen Matrix session is active.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+
+                Toggle(
+                    "Also show on lock screen",
+                    isOn: Binding(
+                        get: { model.settings.lockScreenEnabled },
+                        set: { model.settings.lockScreenEnabled = $0 }
+                    )
+                )
+                .disabled(!model.settings.wallpaperEnabled)
+                .padding(.leading, 16)
+                Text("Installs a Matrix still as your system wallpaper so the lock screen matches your current theme.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 16)
             }
 
             Section("Auto-activate") {
