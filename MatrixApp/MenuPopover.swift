@@ -205,7 +205,8 @@ private struct MenuPopoverView: View {
     var body: some View {
         VStack(spacing: 0) {
             MenuPopoverRow(
-                label: model.isActive ? "Dismiss Matrix" : "Activate Matrix"
+                label: model.isActive ? "Dismiss Matrix" : "Activate Matrix",
+                shortcut: GlobalHotKeyManager.defaultDisplayString
             ) {
                 onToggle()
                 model.dismiss?()
@@ -213,7 +214,7 @@ private struct MenuPopoverView: View {
 
             menuDivider
 
-            MenuPopoverRow(label: "Preferences…", shortcut: "⌘,") {
+            MenuPopoverRow(label: "Preferences…") {
                 onPreferences()
                 model.dismiss?()
             }
