@@ -20,6 +20,11 @@ final class MatrixWallpaperManager {
     private var windows: [MatrixWallpaperWindow] = []
     private var screensChangedObserver: NSObjectProtocol?
 
+    /// Owns the static-image side of "wallpaper mode" — the PNG that
+    /// macOS uses for the lock screen and any moment our live render
+    /// isn't covering the desktop (app launch, app crash, etc.).
+    private let stillManager = SystemWallpaperManager()
+
     /// Turn the wallpaper on or off. Idempotent.
     func setEnabled(_ enable: Bool) {
         guard enable != isEnabled else { return }
@@ -29,18 +34,30 @@ final class MatrixWallpaperManager {
         if enable {
             observeScreenChanges()
             startWindowsIfPossible()
+            // Set a per-screen Matrix still as the system wallpaper so
+            // the lock screen and any not-rendering-yet moments show
+            // Matrix instead of the user's old wallpaper.
+            stillManager.installMatrixStill(settings: settings)
         } else {
             stopObservingScreenChanges()
             tearDownWindows()
+            // Put the user's original wallpaper back.
+            stillManager.restorePreviousWallpapers()
         }
     }
 
-    /// Push fresh renderer settings to the live wallpaper render.
+    /// Push fresh renderer settings to the live wallpaper render. If the
+    /// theme changed and we're enabled, regenerate the system still so
+    /// the lock screen matches the new theme.
     func applySettings(_ newSettings: MatrixSettings) {
+        let themeChanged = newSettings.theme != settings.theme
         settings = newSettings
         for window in windows {
             (window.contentView as? MatrixWindowContentView)?
                 .layerHost?.settings = newSettings
+        }
+        if isEnabled && themeChanged {
+            stillManager.installMatrixStill(settings: newSettings)
         }
     }
 

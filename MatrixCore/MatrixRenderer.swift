@@ -102,10 +102,48 @@ public final class MatrixRenderer: NSObject, MTKViewDelegate {
 
         advance(deltaTime: dt)
 
+        guard let buffer = encodeFrame(into: drawable.texture, viewportSize: drawableSize)
+        else { return }
+        buffer.present(drawable)
+        buffer.commit()
+    }
+
+    /// Render a single frame at `target.size` into `target`. Used by the
+    /// system-wallpaper still generator. Mutates internal state (grid,
+    /// column buffer, scene texture, bloom pipeline), so call this on a
+    /// dedicated MatrixRenderer instance — not one driving a live view.
+    /// Blocks until the GPU finishes so the bytes are immediately
+    /// readable.
+    public func snapshot(
+        into target: MTLTexture,
+        settings: MatrixSettings,
+        warmupSeconds: Float = 3.0
+    ) {
+        self.settings = settings
+        let size = CGSize(width: target.width, height: target.height)
+        applyDrawableSize(size)
+
+        // Warm up the simulation in many small chunks so column-wrap math
+        // distributes head positions naturally — one big dt would skip
+        // over wraps and leave columns piled up at the bottom.
+        let stepDt: Float = 1.0 / 60.0
+        let steps = max(1, Int(warmupSeconds / stepDt))
+        for _ in 0..<steps { advance(deltaTime: stepDt) }
+
+        guard let buffer = encodeFrame(into: target, viewportSize: size)
+        else { return }
+        buffer.commit()
+        buffer.waitUntilCompleted()
+    }
+
+    /// Build the column-pass + bloom-composite command buffer and return it
+    /// uncommitted. The live path adds `present(drawable)` then commits;
+    /// the snapshot path commits and waits.
+    private func encodeFrame(into target: MTLTexture, viewportSize: CGSize) -> MTLCommandBuffer? {
         guard let columnBuffer,
               let sceneTexture,
               let buffer = commandQueue.makeCommandBuffer() else {
-            return
+            return nil
         }
 
         // ---- Pass 1: render columns to sceneTexture ----
@@ -116,7 +154,7 @@ public final class MatrixRenderer: NSObject, MTKViewDelegate {
         scenePass.colorAttachments[0].storeAction = .store
 
         guard let encoder = buffer.makeRenderCommandEncoder(descriptor: scenePass) else {
-            return
+            return nil
         }
 
         var uniforms = GridUniforms(
@@ -150,17 +188,16 @@ public final class MatrixRenderer: NSObject, MTKViewDelegate {
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
         encoder.endEncoding()
 
-        // ---- Pass 2-5: bloom + composite to drawable ----
+        // ---- Pass 2-5: bloom + composite into target ----
         bloomPipeline.encode(
             commandBuffer: buffer,
             sceneTexture: sceneTexture,
-            target: drawable.texture,
+            target: target,
             settings: settings,
-            viewportSize: drawableSize
+            viewportSize: viewportSize
         )
 
-        buffer.present(drawable)
-        buffer.commit()
+        return buffer
     }
 
     private func applyDrawableSize(_ size: CGSize) {
