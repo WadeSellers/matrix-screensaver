@@ -318,6 +318,30 @@ private extension SIMD4 where Scalar == Float {
     }
 }
 
+// MARK: - Keyboard shortcut badge
+
+/// Small monospaced pill that displays a keyboard shortcut like a real
+/// key cap. Used as a read-only Settings element to surface the global
+/// hotkey without implying it's user-editable.
+private struct KeyboardShortcutBadge: View {
+    let shortcut: String
+
+    var body: some View {
+        Text(shortcut)
+            .font(.system(.caption, design: .monospaced))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.secondary.opacity(0.15))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(Color.secondary.opacity(0.25), lineWidth: 0.5)
+            )
+    }
+}
+
 // MARK: - Settings form
 
 private struct SettingsView: View {
@@ -375,6 +399,12 @@ private struct SettingsView: View {
             }
 
             Section {
+                LabeledContent("Toggle anywhere") {
+                    KeyboardShortcutBadge(
+                        shortcut: GlobalHotKeyManager.defaultDisplayString
+                    )
+                }
+
                 Toggle("Activate when idle", isOn: Binding(
                     get: { model.settings.autoActivateOnIdle },
                     set: { model.settings.autoActivateOnIdle = $0 }
@@ -393,7 +423,7 @@ private struct SettingsView: View {
                     }
                 }
             } header: {
-                Label("Auto-activate", systemImage: "clock.fill")
+                Label("Activation", systemImage: "bolt.fill")
             }
 
             Section {

@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var idleMonitor: IdleMonitor?
     private var wallpaperManager: MatrixWallpaperManager?
     private let systemWallpaperManager = SystemWallpaperManager()
+    private var hotKeyManager: GlobalHotKeyManager?
     private var settingsController: SettingsWindowController?
     private var settings: AppSettings = .defaults
 
@@ -74,12 +75,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         idleMonitor.start()
         self.idleMonitor = idleMonitor
+
+        // Global hotkey: ⌃⌥⌘M from anywhere → toggle Matrix.
+        let hotKeyManager = GlobalHotKeyManager()
+        hotKeyManager.onPressed = { [weak session] in
+            session?.toggle()
+        }
+        hotKeyManager.register()
+        self.hotKeyManager = hotKeyManager
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         session?.deactivate()
         idleMonitor?.stop()
         wallpaperManager?.setEnabled(false)
+        hotKeyManager?.unregister()
         // Note: we do NOT restore the wallpaper on quit. The user may
         // want our still to survive across app restarts (it's their
         // chosen wallpaper). Restore only happens on explicit toggle-off.
