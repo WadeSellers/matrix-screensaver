@@ -262,9 +262,13 @@ private struct MenuPopoverRow: View {
                 Spacer()
                 if let shortcut {
                     Text(shortcut)
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.65))
-                        .shadow(color: .black.opacity(0.85), radius: 1.5, x: 0, y: 0)
+                        .font(.system(.body, design: .monospaced))
+                        .fontWeight(.semibold)
+                        // Per-character spacing so ⌃⌥⌘M doesn't smush
+                        // into a single illegible glyph.
+                        .tracking(3)
+                        .foregroundStyle(.white.opacity(0.9))
+                        .shadow(color: .black.opacity(0.9), radius: 1.5, x: 0, y: 0)
                 }
             }
             .padding(.horizontal, 14)
