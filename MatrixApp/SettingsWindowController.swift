@@ -252,13 +252,6 @@ private struct ThemeTile: View {
                     RoundedRectangle(cornerRadius: 4)
                         .stroke(.white.opacity(0.08), lineWidth: 0.5)
                 )
-                // Hint at per-theme bloom intensity: a soft head-coloured
-                // outer glow, scaled by bloomStrength. Resurrections
-                // halos red; Animatrix (0.90) sits nearly flat.
-                .shadow(
-                    color: theme.headColor.color.opacity(0.35),
-                    radius: CGFloat(theme.bloomStrength) * 1.8
-                )
 
                 Text(theme.name)
                     .font(.caption2)
@@ -267,7 +260,14 @@ private struct ThemeTile: View {
             }
             .padding(.vertical, 6)
             .padding(.horizontal, 6)
+            // Selection state uses BOTH a filled background AND a stroke
+            // so it's unambiguous — a stroke alone reads similarly to
+            // ambient glow, especially on the leftmost tile.
             .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(isSelected ? Color.accentColor.opacity(0.18) : .clear)
+            )
+            .overlay(
                 RoundedRectangle(cornerRadius: 6)
                     .stroke(isSelected ? Color.accentColor : .clear, lineWidth: 2)
             )
