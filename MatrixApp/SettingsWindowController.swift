@@ -342,9 +342,10 @@ private struct KeyCap: View {
     }
 }
 
-/// Renders a multi-key shortcut as a row of `KeyCap`s, the way
-/// Raycast / Alfred / Apple's own keyboard-shortcut UI presents them.
-/// Splits the input string per character — "⌃⌥⌘M" → 4 caps.
+/// Renders a multi-key shortcut as a row of `KeyCap`s with the
+/// modifier name spelled out underneath each cap — Apple's own
+/// Keyboard system-settings layout. Splits the input string per
+/// character — "⌃⌥⌘M" → 4 caps.
 private struct KeyboardShortcutBadge: View {
     let keys: [String]
 
@@ -353,10 +354,33 @@ private struct KeyboardShortcutBadge: View {
     }
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(alignment: .top, spacing: 6) {
             ForEach(Array(keys.enumerated()), id: \.offset) { _, key in
-                KeyCap(symbol: key)
+                VStack(spacing: 3) {
+                    KeyCap(symbol: key)
+                    Text(Self.name(for: key))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
             }
+        }
+    }
+
+    /// Map a single-glyph key symbol to its human name. Letters and
+    /// numbers fall through to themselves so the label still appears
+    /// under their cap (matches the visual symmetry users expect).
+    private static func name(for symbol: String) -> String {
+        switch symbol {
+        case "⌃": return "Control"
+        case "⌥": return "Option"
+        case "⌘": return "Command"
+        case "⇧": return "Shift"
+        case "↩": return "Return"
+        case "⎋": return "Esc"
+        case "⌫": return "Delete"
+        case "⇥": return "Tab"
+        case "␣": return "Space"
+        default:  return symbol
         }
     }
 }
