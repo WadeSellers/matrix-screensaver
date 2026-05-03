@@ -227,22 +227,37 @@ private struct ThemeTile: View {
     var body: some View {
         Button(action: action) {
             VStack(spacing: 4) {
+                // Stops are weighted to mirror an actual Matrix column:
+                // a real head "cap" at the top (so head-color identity is
+                // visible — white vs pale-green vs amber reads at a
+                // glance), a bright near-trail zone, then a long fade
+                // through mid → far → black. Even-spaced stops compress
+                // the head into a 1-pixel sliver and the tiles all look
+                // alike.
                 LinearGradient(
-                    colors: [
-                        theme.headColor.color,
-                        theme.nearTrailColor.color,
-                        theme.midTrailColor.color,
-                        theme.farTrailColor.color,
-                        .black
+                    stops: [
+                        .init(color: theme.headColor.color,      location: 0.00),
+                        .init(color: theme.headColor.color,      location: 0.14),
+                        .init(color: theme.nearTrailColor.color, location: 0.28),
+                        .init(color: theme.midTrailColor.color,  location: 0.55),
+                        .init(color: theme.farTrailColor.color,  location: 0.88),
+                        .init(color: .black,                     location: 1.00)
                     ],
                     startPoint: .top,
                     endPoint: .bottom
                 )
-                .frame(width: 48, height: 36)
+                .frame(width: 48, height: 52)
                 .clipShape(RoundedRectangle(cornerRadius: 4))
                 .overlay(
                     RoundedRectangle(cornerRadius: 4)
                         .stroke(.white.opacity(0.08), lineWidth: 0.5)
+                )
+                // Hint at per-theme bloom intensity: a soft head-coloured
+                // outer glow, scaled by bloomStrength. Reloaded (1.50)
+                // visibly halos; Animatrix (0.90) sits nearly flat.
+                .shadow(
+                    color: theme.headColor.color.opacity(0.35),
+                    radius: CGFloat(theme.bloomStrength) * 1.8
                 )
 
                 Text(theme.name)
@@ -250,7 +265,7 @@ private struct ThemeTile: View {
                     .foregroundStyle(isSelected ? .primary : .secondary)
                     .lineLimit(1)
             }
-            .padding(.vertical, 4)
+            .padding(.vertical, 6)
             .padding(.horizontal, 6)
             .background(
                 RoundedRectangle(cornerRadius: 6)
