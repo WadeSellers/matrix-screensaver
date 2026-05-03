@@ -320,25 +320,44 @@ private extension SIMD4 where Scalar == Float {
 
 // MARK: - Keyboard shortcut badge
 
-/// Small monospaced pill that displays a keyboard shortcut like a real
-/// key cap. Used as a read-only Settings element to surface the global
-/// hotkey without implying it's user-editable.
-private struct KeyboardShortcutBadge: View {
-    let shortcut: String
+/// One physical-looking key cap. Rounded square, monospaced label,
+/// subtle stroke + tinted background that reads as a real keyboard key
+/// rather than a body-text glyph.
+private struct KeyCap: View {
+    let symbol: String
 
     var body: some View {
-        Text(shortcut)
-            .font(.system(.caption, design: .monospaced))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
+        Text(symbol)
+            .font(.system(size: 16, weight: .semibold, design: .monospaced))
+            .frame(minWidth: 30, minHeight: 30)
+            .padding(.horizontal, 4)
             .background(
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(Color.secondary.opacity(0.15))
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.primary.opacity(0.10))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 4)
-                    .stroke(Color.secondary.opacity(0.25), lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(Color.primary.opacity(0.30), lineWidth: 1)
             )
+    }
+}
+
+/// Renders a multi-key shortcut as a row of `KeyCap`s, the way
+/// Raycast / Alfred / Apple's own keyboard-shortcut UI presents them.
+/// Splits the input string per character — "⌃⌥⌘M" → 4 caps.
+private struct KeyboardShortcutBadge: View {
+    let keys: [String]
+
+    init(shortcut: String) {
+        self.keys = shortcut.map { String($0) }
+    }
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(Array(keys.enumerated()), id: \.offset) { _, key in
+                KeyCap(symbol: key)
+            }
+        }
     }
 }
 
