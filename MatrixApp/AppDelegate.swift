@@ -33,9 +33,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 NSApp.terminate(nil)
             }
         )
-        // Seed the live menu-bar icon with the persisted theme so it
-        // doesn't briefly animate in Matrix Classic before catching up.
-        menuBarItem.setTheme(settings.matrix.theme)
+        // Seed the live menu-bar icon AND the popover preview with the
+        // persisted settings so neither briefly animates in Matrix
+        // Classic before catching up.
+        menuBarItem.applySettings(settings.matrix)
 
         // Live-window wallpaper manager. Static-image side is handled
         // separately via systemWallpaperManager so the two toggles are
@@ -131,14 +132,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settings = newSettings
         newSettings.save(to: defaults)
 
-        // Renderer settings → live propagate to active session AND wallpaper.
+        // Renderer settings → live propagate to active session, wallpaper,
+        // AND the menu-bar (animated icon + popover preview).
         if newSettings.matrix != oldSettings.matrix {
             session?.applySettings(newSettings.matrix)
             wallpaperManager?.applySettings(newSettings.matrix)
-        }
-        // Theme change → also re-tint the menu-bar icon.
-        if newSettings.matrix.theme != oldSettings.matrix.theme {
-            menuBarItem?.setTheme(newSettings.matrix.theme)
+            menuBarItem?.applySettings(newSettings.matrix)
         }
         // Idle settings → reconfigure the monitor.
         idleMonitor?.thresholdSeconds = newSettings.idleThresholdMinutes * 60

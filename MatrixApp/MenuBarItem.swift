@@ -6,12 +6,17 @@ import MatrixCore
 /// at 10 fps. Click the icon to toggle activation; right-click (or
 /// option-click) opens the context menu.
 @MainActor
-final class MenuBarItem {
+final class MenuBarItem: NSObject {
     private let statusItem: NSStatusItem
     private let onToggle: () -> Void
     private let onPreferences: () -> Void
-    private var menu: NSMenu = NSMenu()
     private var onQuit: (() -> Void)?
+
+    /// Anchored popover that replaces the standard NSMenu on right-/
+    /// control-click. Hosts a live Matrix render behind custom rows so
+    /// the menu visually matches the rest of the app.
+    private let popover = NSPopover()
+    private let popoverController: MenuPopoverViewController
 
     // MARK: - Live-icon animation state
 
@@ -59,12 +64,39 @@ final class MenuBarItem {
     ) {
         self.onToggle = onToggle
         self.onPreferences = onPreferences
+        self.onQuit = onQuit
 
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         self.statusItem = item
 
+        // Build the popover controller before super.init so the
+        // `let popoverController` constant is satisfied. The About
+        // action is owned by the controller itself (as a method) so
+        // we don't need a back-reference to `self` here.
+        let model = MenuPopoverModel()
+        popoverController = MenuPopoverViewController(
+            model: model,
+            onToggle: onToggle,
+            onPreferences: onPreferences,
+            onQuit: onQuit
+        )
+
+        super.init()
+
+        // Wire the popover's dismiss closure so SwiftUI rows can close
+        // the popover after firing their action.
+        model.dismiss = { [weak self] in
+            self?.popover.performClose(nil)
+        }
+
+        // Configure the popover itself.
+        popover.contentViewController = popoverController
+        popover.behavior = .transient   // dismiss on click outside
+        popover.animates = true
+        popover.delegate = self
+
         // Click handling: left-click toggles; right-click (or
-        // control-click) opens the menu. Distinguished manually via
+        // control-click) opens the popover. Distinguished manually via
         // sendAction:to: so we get both behaviours from one button.
         if let button = item.button {
             button.target = self
@@ -72,57 +104,24 @@ final class MenuBarItem {
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
 
-        let menu = NSMenu()
-        menu.addItem(NSMenuItem(
-            title: "Activate",
-            action: #selector(triggerToggle),
-            keyEquivalent: ""
-        ))
-        menu.addItem(NSMenuItem.separator())
-        let prefsItem = NSMenuItem(
-            title: "Preferences…",
-            action: #selector(triggerPreferences),
-            keyEquivalent: ","
-        )
-        prefsItem.keyEquivalentModifierMask = [.command]
-        menu.addItem(prefsItem)
-        menu.addItem(NSMenuItem(
-            title: "About Matrix",
-            action: #selector(triggerAbout),
-            keyEquivalent: ""
-        ))
-        menu.addItem(NSMenuItem.separator())
-        let quit = NSMenuItem(
-            title: "Quit Matrix",
-            action: #selector(triggerQuit),
-            keyEquivalent: "q"
-        )
-        quit.target = self
-        menu.addItem(quit)
-        for menuItem in menu.items where menuItem.target == nil {
-            menuItem.target = self
-        }
-        self.menu = menu
-        self.onQuit = onQuit
-
         startAnimation()
     }
 
-    /// Update the menu's first item label between Activate / Dismiss
-    /// based on whether the fullscreen session is showing. The animated
-    /// icon itself is unchanged — it's "always on," giving the menu
-    /// bar a constant Matrix presence regardless of activation state.
+    /// Update internal active state. The menu row label ("Activate" vs
+    /// "Dismiss") follows the popover model directly. The animated icon
+    /// itself is unchanged — it's "always on," giving the menu bar a
+    /// constant Matrix presence regardless of activation state.
     func setActive(_ isActive: Bool) {
-        if let firstItem = menu.items.first {
-            firstItem.title = isActive ? "Dismiss" : "Activate"
-        }
+        popoverController.model.isActive = isActive
     }
 
-    /// Push a new theme into the live icon. Called on launch with the
-    /// persisted theme and on every settings change. Takes effect on
-    /// the next tick (≤100ms).
-    func setTheme(_ newTheme: MatrixTheme) {
-        theme = newTheme
+    /// Push fresh renderer settings into both the animated menu-bar
+    /// icon (theme colours) AND the live Matrix render behind the
+    /// popover (full settings). Called on launch with the persisted
+    /// settings and again on every settings change.
+    func applySettings(_ settings: MatrixSettings) {
+        theme = settings.theme
+        popoverController.applySettings(settings)
     }
 
     // MARK: - Live icon rendering
@@ -300,60 +299,44 @@ final class MenuBarItem {
 
     @objc private func buttonClicked(_ sender: NSStatusBarButton) {
         let event = NSApp.currentEvent
-        if event?.type == .rightMouseUp || event?.modifierFlags.contains(.control) == true {
-            statusItem.menu = menu
-            statusItem.button?.performClick(nil)
-            statusItem.menu = nil
+        let wantsMenu = event?.type == .rightMouseUp
+            || event?.modifierFlags.contains(.control) == true
+        if wantsMenu {
+            togglePopover()
         } else {
             onToggle()
         }
     }
 
-    @objc private func triggerToggle() {
-        onToggle()
-    }
-
-    @objc private func triggerQuit() {
-        onQuit?()
-    }
-
-    @objc private func triggerPreferences() {
-        onPreferences()
-    }
-
-    @objc private func triggerAbout() {
-        // Bring our accessory app forward briefly so the About panel
-        // becomes key. Without activating, it can appear behind other apps.
-        NSApp.activate(ignoringOtherApps: true)
-
-        // Custom credits with a clickable GitHub link, rendered through
-        // the standard About panel so we still get the system look.
-        let credits = NSMutableAttributedString(
-            string: "A screen-accurate replica of the digital rain from " +
-                    "The Matrix (1999), built in Swift + Metal.\n\n" +
-                    "github.com/WadeSellers/matrix-screensaver",
-            attributes: [
-                .font: NSFont.systemFont(ofSize: 11),
-                .foregroundColor: NSColor.secondaryLabelColor,
-                .paragraphStyle: { () -> NSParagraphStyle in
-                    let p = NSMutableParagraphStyle()
-                    p.alignment = .center
-                    return p
-                }()
-            ]
-        )
-        // Make the URL clickable.
-        let urlRange = (credits.string as NSString).range(of: "github.com/WadeSellers/matrix-screensaver")
-        if urlRange.location != NSNotFound {
-            credits.addAttribute(
-                .link,
-                value: "https://github.com/WadeSellers/matrix-screensaver",
-                range: urlRange
+    private func togglePopover() {
+        if popover.isShown {
+            popover.performClose(nil)
+        } else if let button = statusItem.button {
+            // popoverWillShow (delegate method below) starts the live
+            // render once the window exists.
+            popover.show(
+                relativeTo: button.bounds,
+                of: button,
+                preferredEdge: .minY
             )
         }
+    }
+}
 
-        NSApp.orderFrontStandardAboutPanel(options: [
-            .credits: credits
-        ])
+// MARK: - Popover lifecycle
+
+extension MenuBarItem: NSPopoverDelegate {
+    nonisolated func popoverWillShow(_ notification: Notification) {
+        // Delegate methods aren't @MainActor-isolated in the SDK, so
+        // hop explicitly. AppKit calls these on main in practice.
+        Task { @MainActor in
+            popoverController.startRender()
+        }
+    }
+
+    nonisolated func popoverDidClose(_ notification: Notification) {
+        Task { @MainActor in
+            popoverController.stopRender()
+        }
     }
 }
