@@ -58,24 +58,13 @@ public struct MatrixTheme: Equatable, Hashable, Sendable, Identifiable {
 
 public extension MatrixTheme {
 
-    /// Movie-accurate green — the current default.
+    /// Movie-accurate green — the default.
     static let classic = MatrixTheme(
-        name: "Classic",
+        name: "Matrix Classic",
         headColor:      SIMD4(0.87, 1.00, 0.87, 0),  // #DDFFDD
         nearTrailColor: SIMD4(0.00, 1.00, 0.40, 0),  // #00FF66
         midTrailColor:  SIMD4(0.00, 0.53, 0.20, 0),  // #008833
         farTrailColor:  SIMD4(0.00, 0.20, 0.07, 0)   // #003311
-    )
-
-    /// Matrix Reloaded — cranked up. Pure-white head, brighter green
-    /// near-trail, bigger bloom halos.
-    static let reloaded = MatrixTheme(
-        name: "Reloaded",
-        headColor:      SIMD4(1.00, 1.00, 1.00, 0),  // white
-        nearTrailColor: SIMD4(0.00, 1.00, 0.60, 0),  // #00FF99
-        midTrailColor:  SIMD4(0.00, 0.67, 0.27, 0),  // #00AA44
-        farTrailColor:  SIMD4(0.00, 0.20, 0.08, 0),
-        bloomStrength: 1.50
     )
 
     /// Matrix Resurrections — red/pink palette.
@@ -129,6 +118,6 @@ public extension MatrixTheme {
 
     /// Ordered list used to populate the Settings picker.
     static let allPresets: [MatrixTheme] = [
-        .classic, .reloaded, .resurrections, .amberCRT, .animatrix, .solarized
+        .classic, .resurrections, .amberCRT, .animatrix, .solarized
     ]
 }

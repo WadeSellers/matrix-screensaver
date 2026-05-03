@@ -253,8 +253,8 @@ private struct ThemeTile: View {
                         .stroke(.white.opacity(0.08), lineWidth: 0.5)
                 )
                 // Hint at per-theme bloom intensity: a soft head-coloured
-                // outer glow, scaled by bloomStrength. Reloaded (1.50)
-                // visibly halos; Animatrix (0.90) sits nearly flat.
+                // outer glow, scaled by bloomStrength. Resurrections
+                // halos red; Animatrix (0.90) sits nearly flat.
                 .shadow(
                     color: theme.headColor.color.opacity(0.35),
                     radius: CGFloat(theme.bloomStrength) * 1.8

@@ -64,8 +64,11 @@ dev-themed presets. Shipped.
 - [x] **3.1 — Theme model.** `MatrixTheme` struct holding color
   triplets (head, near-trail, mid-trail, far-trail) and per-theme
   bloom / scanline / vignette multipliers.
-- [x] **3.2 — Six presets:** `.classic`, `.reloaded`,
+- [x] **3.2 — Five presets:** `.classic` (Matrix Classic),
   `.resurrections`, `.amberCRT`, `.animatrix`, `.solarized`.
+  (Reloaded was retired — too close to Classic to read distinctly in
+  the picker, and the name implies a separation that doesn't really
+  exist in the visual.)
 - [x] **3.3 — Settings dropdown.** SwiftUI `Picker` with live
   propagation to active session and preview.
 - ❌ **3.4 — Hand-drawn variant.** Tried twice and abandoned:
