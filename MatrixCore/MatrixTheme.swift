@@ -58,18 +58,18 @@ public struct MatrixTheme: Equatable, Hashable, Sendable, Identifiable {
 
 public extension MatrixTheme {
 
-    /// Movie-accurate green — the default.
+    /// The canonical green digital-rain palette. Default theme.
     static let classic = MatrixTheme(
-        name: "Matrix Classic",
+        name: "Classic",
         headColor:      SIMD4(0.87, 1.00, 0.87, 0),  // #DDFFDD
         nearTrailColor: SIMD4(0.00, 1.00, 0.40, 0),  // #00FF66
         midTrailColor:  SIMD4(0.00, 0.53, 0.20, 0),  // #008833
         farTrailColor:  SIMD4(0.00, 0.20, 0.07, 0)   // #003311
     )
 
-    /// Matrix Resurrections — red/pink palette.
-    static let resurrections = MatrixTheme(
-        name: "Resurrections",
+    /// Red/pink palette — heat-bath aesthetic. Heavy vignette.
+    static let crimson = MatrixTheme(
+        name: "Crimson",
         headColor:      SIMD4(1.00, 0.87, 0.87, 0),  // #FFDDDD
         nearTrailColor: SIMD4(1.00, 0.27, 0.40, 0),  // #FF4566
         midTrailColor:  SIMD4(0.53, 0.07, 0.20, 0),  // #881133
@@ -90,10 +90,10 @@ public extension MatrixTheme {
         vignetteAmount: 0.85
     )
 
-    /// Animatrix — desaturated, sepia-tinted. Softer bloom and lighter
-    /// scanlines for a pencil-and-ink anime feel.
-    static let animatrix = MatrixTheme(
-        name: "Animatrix",
+    /// Sepia — desaturated yellow-green palette. Softer bloom and
+    /// lighter scanlines for a pencil-and-ink, animated-feature feel.
+    static let sepia = MatrixTheme(
+        name: "Sepia",
         headColor:      SIMD4(0.87, 0.87, 0.80, 0),  // #DDDDCC
         nearTrailColor: SIMD4(0.67, 0.73, 0.53, 0),  // #AABB88
         midTrailColor:  SIMD4(0.33, 0.40, 0.27, 0),  // #556644
@@ -118,6 +118,6 @@ public extension MatrixTheme {
 
     /// Ordered list used to populate the Settings picker.
     static let allPresets: [MatrixTheme] = [
-        .classic, .resurrections, .amberCRT, .animatrix, .solarized
+        .classic, .crimson, .amberCRT, .sepia, .solarized
     ]
 }

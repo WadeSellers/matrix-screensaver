@@ -1,22 +1,24 @@
-# Matrix
+# Cipherfall
 
 A standalone macOS app that brings the digital rain from *The Matrix* (1999) to your desktop, your lock screen, your menu bar, and an on-demand fullscreen takeover.
 
-![Matrix running on a MacBook Air](docs/demo.gif)
+![Cipherfall running on a MacBook Air](docs/demo.gif)
 
 Built in Swift + Metal for macOS 14+ (Sequoia / Tahoe) on Apple Silicon. Mirrored half-width katakana flowing in green columns down a black screen, white-green leading characters, fading green trails, occasional stammer flickers, soft bloom on the heads, CRT scanlines and vignette. Five color themes, live previews, and a global hotkey to summon it from any app.
+
+> The visual is inspired by the iconic 1999 cypherpunk film — Cipherfall is an unaffiliated, unofficial fan project. *The Matrix* and related marks are trademarks of Warner Bros. Entertainment Inc.
 
 ## Features
 
 - **Fullscreen takeover** — covers every connected display, dismisses on any input
 - **Live desktop wallpaper** — animated rain behind your icons (optional)
-- **Lock-screen still** — sub-option of wallpaper; installs a per-screen Matrix still as your system wallpaper so the lock screen matches your current theme
-- **Global hotkey** — `⌃⌥⌘M` from anywhere toggles fullscreen Matrix without taking focus from your other apps
+- **Lock-screen still** — sub-option of wallpaper; installs a per-screen still as your system wallpaper so the lock screen matches your current theme
+- **Global hotkey** — `⌃⌥⌘M` from anywhere toggles fullscreen rain without taking focus from your other apps
 - **Auto-activate on idle** — full screensaver-replacement behavior with a configurable threshold
 - **Animated menu-bar icon** — a tiny live render in your current theme that animates 24/7
-- **Matrix-themed popover menu** — left-click the icon to open it; the popover background is itself live Matrix in your theme
-- **Five themes** — Matrix Classic, Resurrections, Amber CRT, Animatrix, Solarized
-- **Touch ID dismiss** — tap the Touch ID button (or `⌃⌘Q`) and Matrix tears itself down behind the lock screen, so finger-unlock lands you on a clean desktop
+- **Themed popover menu** — left-click the icon to open it; the popover background is itself live rain in your theme
+- **Five themes** — Classic, Crimson, Amber CRT, Sepia, Solarized
+- **Touch ID dismiss** — tap the Touch ID button (or `⌃⌘Q`) and Cipherfall tears itself down behind the lock screen, so finger-unlock lands you on a clean desktop
 
 ## Install
 
@@ -29,36 +31,36 @@ cd matrix-screensaver
 ./scripts/install-app.sh
 ```
 
-The script regenerates the Xcode project, builds Release, ad-hoc codesigns, and installs to `/Applications/Matrix.app`. Launch it and the Matrix icon appears in your menu bar. (No Dock icon — `LSUIElement` is set so it stays out of the way.)
+The script regenerates the Xcode project, builds Release, ad-hoc codesigns, and installs to `/Applications/Cipherfall.app`. Launch it and the icon appears in your menu bar. (No Dock icon — `LSUIElement` is set so it stays out of the way.)
 
 ### Gatekeeper note
 
-The first time you launch you may see "Matrix can't be opened" — the bundle is ad-hoc signed, not notarized. **System Settings → Privacy & Security → Open Anyway**.
+The first time you launch you may see "Cipherfall can't be opened" — the bundle is ad-hoc signed, not notarized. **System Settings → Privacy & Security → Open Anyway**.
 
 ## Usage
 
 | Action | How |
 | --- | --- |
 | Open the popover menu | **Left-click** the menu-bar icon |
-| Toggle fullscreen Matrix | **Right-click** (or **control-click**) the icon — the easter-egg shortcut |
+| Toggle fullscreen rain | **Right-click** (or **control-click**) the icon — the easter-egg shortcut |
 | Toggle from anywhere | **⌃⌥⌘M** (works in any app, even fullscreen) |
 | Open Preferences | **Left-click → Preferences…** |
 | Dismiss fullscreen | Any mouse move, click, scroll, key press, gesture |
-| Dismiss to a clean desktop | Touch ID tap or `⌃⌘Q` (locks → Matrix tears down behind the lock screen → fingerprint-unlock lands on plain desktop) |
+| Dismiss to a clean desktop | Touch ID tap or `⌃⌘Q` (locks → Cipherfall tears down behind the lock screen → fingerprint-unlock lands on plain desktop) |
 
-`matrix://` URL scheme is also wired up: `matrix://activate`, `matrix://dismiss`, `matrix://toggle`, `matrix://preferences`. Useful for Raycast, Alfred, Stream Deck, AppleScript, Hammerspoon — anything that can open a URL.
+`cipherfall://` URL scheme is also wired up: `cipherfall://activate`, `cipherfall://dismiss`, `cipherfall://toggle`, `cipherfall://preferences`. Useful for Raycast, Alfred, Stream Deck, AppleScript, Hammerspoon — anything that can open a URL.
 
 ## Configure
 
-Open Preferences from the popover. The form sits over a live Matrix preview that updates as you change settings.
+Open Preferences from the popover. The form sits over a live preview that updates as you change settings.
 
 **Rendering**
 - **Theme** — gallery of color presets, click a tile to switch
 - **Speed** — global multiplier from 0.25× to 3.0×
 
 **Desktop**
-- **Use Matrix as desktop wallpaper** — live animated rain behind your icons. Pauses while a fullscreen Matrix session is active so the GPU isn't rendering twice.
-- **Also show on lock screen** — sub-option; installs a per-screen Matrix still as the system wallpaper so the lock screen shows Matrix in your current theme. Captures your previous wallpaper on first install and restores it on toggle-off.
+- **Use Cipherfall as desktop wallpaper** — live animated rain behind your icons. Pauses while a fullscreen session is active so the GPU isn't rendering twice.
+- **Also show on lock screen** — sub-option; installs a per-screen still as the system wallpaper so the lock screen shows the rain in your current theme. Captures your previous wallpaper on first install and restores it on toggle-off.
 
 **Activation**
 - **Toggle anywhere** — the global hotkey (display-only for now)
@@ -79,7 +81,7 @@ MatrixCore (framework)
 ├─ MatrixSettings       Speed, theme, etc. — persisted via UserDefaults
 └─ MatrixLayerHost      CAMetalLayer + display link, used by every host
 
-MatrixApp (the app)
+MatrixApp (the app — produces Cipherfall.app)
 ├─ AppDelegate          Wires the singletons: session, idle monitor,
 │                       wallpaper manager, system wallpaper, hotkey, menu
 ├─ MatrixSession        Fullscreen activation state machine (1 window /
@@ -88,17 +90,19 @@ MatrixApp (the app)
 ├─ MatrixWindow         Borderless screensaver-level NSWindow per display
 ├─ MatrixWallpaperWindow Borderless desktop-level NSWindow per display
 ├─ MatrixWallpaperManager Per-screen wallpaper window lifecycle
-├─ SystemWallpaperManager Renders a per-screen Matrix still and installs
+├─ SystemWallpaperManager Renders a per-screen still and installs
 │                       it via NSWorkspace.setDesktopImageURL
 ├─ IdleMonitor          NSEvent global monitors → idle detection
 ├─ GlobalHotKeyManager  Carbon RegisterEventHotKey for ⌃⌥⌘M
 ├─ MenuBarItem          NSStatusItem with a programmatically rendered
-│                       animated Matrix icon (10fps CGContext draws)
-├─ MenuPopover          Custom NSPopover with live Matrix render behind
+│                       animated icon (10fps CGContext draws)
+├─ MenuPopover          Custom NSPopover with live render behind
 │                       SwiftUI menu rows
 └─ SettingsWindowController SwiftUI settings form sitting over a live
-                        Matrix preview
+                        preview
 ```
+
+The internal Swift class names retained the `Matrix*` prefix from the project's original codename — they're implementation detail nobody sees. Only the user-facing identity is Cipherfall.
 
 ### Render pipeline
 
@@ -109,7 +113,7 @@ columns ──► sceneTexture ──► [extract] ──► [blur H] ──► 
 ```
 
 - **Column shader** (`fragment_columns`): one fullscreen-triangle pass. Per fragment, derives `(col, row)` from pixel coords, looks up the column's `headRow` from a per-column buffer, computes `trailDist = headRow - row`, emits color from a per-theme piecewise gradient (head → near-trail → mid-trail → far-trail → black). Per-cell glyph index is `hash3(col, row, seed ^ frameBucket) mod glyphCount`.
-- **Glyph atlas**: built once at startup. Mirrored half-width katakana + Latin digits + symbols, rendered via CoreText + Hiragino Sans into a flipped CGContext. Mirroring is what produces the iconic "alien" Matrix look.
+- **Glyph atlas**: built once at startup. Mirrored half-width katakana + Latin digits + symbols, rendered via CoreText + Hiragino Sans into a flipped CGContext. Mirroring is what produces the iconic "alien" digital-rain look.
 - **Bloom** (`BloomPipeline`): half-resolution ping-pong. Threshold extract pulls only pixels above a luminance cutoff so heads bloom but trails don't smear. Two-pass separable 9-tap Gaussian. Composite adds at theme-driven strength.
 - **CRT post-process**: bundled into `fragment_bloom_composite` as a uniform-driven optional path. Crisp every-N-pixel scanlines, radial vignette.
 - **Per-screen state is automatic** — every host (fullscreen, wallpaper, settings preview, popover preview) creates its own `MatrixRenderer` instance. No shared mutable state.

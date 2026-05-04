@@ -2,7 +2,7 @@ import Carbon.HIToolbox
 import Foundation
 import os.log
 
-private let log = OSLog(subsystem: "com.wadesellers.matrix", category: "hotkey")
+private let log = OSLog(subsystem: "com.wadesellers.cipherfall", category: "hotkey")
 
 /// Registers a global keyboard shortcut that fires from any app —
 /// even fullscreen apps — without requiring Accessibility permission.

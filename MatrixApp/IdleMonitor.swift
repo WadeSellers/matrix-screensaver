@@ -2,7 +2,7 @@ import Foundation
 import AppKit
 import os.log
 
-private let log = OSLog(subsystem: "com.wadesellers.matrix", category: "idle")
+private let log = OSLog(subsystem: "com.wadesellers.cipherfall", category: "idle")
 
 /// Tracks user idle time by listening for real input events (`NSEvent`
 /// global + local monitors) and emits a callback when the configured

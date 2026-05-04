@@ -67,6 +67,9 @@ targets:
         NSSupportsSuddenTermination: false
         NSPrincipalClass: NSApplication
 
+  # Target name stays "MatrixApp" (and folder stays MatrixApp/) for
+  # internal consistency with the Swift class names — only the
+  # *user-facing* identity rebrands to Cipherfall.
   MatrixApp:
     type: application
     platform: macOS
@@ -77,8 +80,8 @@ targets:
         embed: true
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.wadesellers.matrix
-        PRODUCT_NAME: Matrix
+        PRODUCT_BUNDLE_IDENTIFIER: com.wadesellers.cipherfall
+        PRODUCT_NAME: Cipherfall
         LD_RUNPATH_SEARCH_PATHS: "@executable_path/../Frameworks"
         ASSETCATALOG_COMPILER_APPICON_NAME: ""
         CURRENT_PROJECT_VERSION: 1
@@ -98,13 +101,14 @@ targets:
         NSSupportsSuddenTermination: false
         NSPrincipalClass: NSApplication
         NSHumanReadableCopyright: "© 2026 Wade Sellers"
-        # URL scheme: matrix://activate, matrix://dismiss, matrix://toggle.
-        # Use to wire up Shortcuts.app, Raycast, Alfred, Stream Deck,
-        # Hammerspoon, AppleScript — anything that can open a URL.
+        # URL scheme: cipherfall://activate, cipherfall://dismiss,
+        # cipherfall://toggle. Use to wire up Shortcuts.app, Raycast,
+        # Alfred, Stream Deck, Hammerspoon, AppleScript — anything that
+        # can open a URL.
         CFBundleURLTypes:
-          - CFBundleURLName: com.wadesellers.matrix
+          - CFBundleURLName: com.wadesellers.cipherfall
             CFBundleURLSchemes:
-              - matrix
+              - cipherfall
 
   MatrixSaver:
     type: bundle

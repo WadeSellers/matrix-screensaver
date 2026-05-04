@@ -2,7 +2,7 @@ import Cocoa
 import MatrixCore
 import os.log
 
-private let log = OSLog(subsystem: "com.wadesellers.matrix", category: "wallpaper")
+private let log = OSLog(subsystem: "com.wadesellers.cipherfall", category: "wallpaper")
 
 /// Owns the per-screen `MatrixWallpaperWindow` instances. Mirrors
 /// `MatrixSession` in shape, but runs continuously while enabled rather

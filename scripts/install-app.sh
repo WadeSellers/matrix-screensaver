@@ -1,11 +1,11 @@
 #!/bin/bash
 #
-# install-app.sh — build Matrix.app (Release) and install to /Applications.
+# install-app.sh — build Cipherfall.app (Release) and install to /Applications.
 #
 # Usage:
 #   ./scripts/install-app.sh
 #
-# After install, drag Matrix.app to System Settings → General → Login Items
+# After install, drag Cipherfall.app to System Settings → General → Login Items
 # if you want it to launch on boot.
 set -euo pipefail
 
@@ -14,7 +14,7 @@ cd "$(dirname "$0")/.."
 echo "→ Generating Xcode project..."
 xcodegen generate
 
-echo "→ Building Matrix.app (Release)..."
+echo "→ Building Cipherfall.app (Release)..."
 xcodebuild \
   -project MatrixSaver.xcodeproj \
   -scheme MatrixApp \
@@ -22,8 +22,8 @@ xcodebuild \
   -derivedDataPath build \
   build 2>&1 | tail -5
 
-APP_SRC="build/Build/Products/Release/Matrix.app"
-APP_DEST="/Applications/Matrix.app"
+APP_SRC="build/Build/Products/Release/Cipherfall.app"
+APP_DEST="/Applications/Cipherfall.app"
 
 if [ ! -d "$APP_SRC" ]; then
   echo "✗ Build did not produce $APP_SRC"
@@ -34,7 +34,7 @@ echo "→ Ad-hoc signing..."
 codesign --force --deep --sign - "$APP_SRC"
 
 # Quit any running copy so we can replace the bundle.
-pkill -x Matrix 2>/dev/null || true
+pkill -x Cipherfall 2>/dev/null || true
 sleep 0.5
 
 if [ -d "$APP_DEST" ]; then
@@ -54,8 +54,9 @@ echo "✓ Installed: $APP_DEST"
 echo ""
 echo "  Next steps:"
 echo "    1. open $APP_DEST              # launch it"
-echo "    2. Look for the Matrix glyph in your menu bar"
-echo "    3. Click → activate, click again or any input → dismiss"
+echo "    2. Look for the Cipherfall glyph in your menu bar"
+echo "    3. Left-click → menu, right-click → fullscreen rain"
+echo "    4. ⌃⌥⌘M from anywhere also toggles fullscreen"
 echo ""
 echo "  Optional — auto-launch on login:"
-echo "    System Settings → General → Login Items → '+' → /Applications/Matrix.app"
+echo "    System Settings → General → Login Items → '+' → /Applications/Cipherfall.app"

@@ -4,7 +4,7 @@ import Metal
 import MatrixCore
 import os.log
 
-private let log = OSLog(subsystem: "com.wadesellers.matrix", category: "wallpaper-still")
+private let log = OSLog(subsystem: "com.wadesellers.cipherfall", category: "wallpaper-still")
 
 /// Manages the macOS system wallpaper setting (the static image shown
 /// behind the desktop and on the lock screen) so we can install a

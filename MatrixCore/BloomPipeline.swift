@@ -128,7 +128,7 @@ public final class BloomPipeline {
         var compU = CompositeUniforms(
             // Pull bloom and CRT parameters from the active theme so each
             // preset can dial in its own feel (Amber CRT gets heavier
-            // scanlines, Animatrix gets a softer bloom, etc.).
+            // scanlines, Sepia gets a softer bloom, etc.).
             bloomStrength: settings.bloomEnabled ? settings.theme.bloomStrength : 0,
             crtEnabled: settings.crtEnabled ? 1 : 0,
             scanlineDarken: settings.theme.scanlineDarken,

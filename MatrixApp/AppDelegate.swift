@@ -99,10 +99,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // chosen wallpaper). Restore only happens on explicit toggle-off.
     }
 
-    /// Handle `matrix://` URLs.
+    /// Handle `cipherfall://` URLs.
     func application(_ application: NSApplication, open urls: [URL]) {
         for url in urls {
-            guard url.scheme == "matrix" else { continue }
+            guard url.scheme == "cipherfall" else { continue }
             let action = url.host ?? url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
             switch action {
             case "activate":   session?.activate()
@@ -110,7 +110,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case "toggle":     session?.toggle()
             case "preferences": openPreferences()
             default:
-                NSLog("Matrix: ignoring unknown URL action '\(action)'")
+                NSLog("Cipherfall: ignoring unknown URL action '\(action)'")
             }
         }
     }

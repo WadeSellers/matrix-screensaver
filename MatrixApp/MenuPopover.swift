@@ -205,7 +205,7 @@ private struct MenuPopoverView: View {
     var body: some View {
         VStack(spacing: 0) {
             MenuPopoverRow(
-                label: model.isActive ? "Dismiss Matrix" : "Activate Matrix",
+                label: model.isActive ? "Dismiss" : "Activate",
                 shortcut: GlobalHotKeyManager.defaultDisplayString
             ) {
                 onToggle()
@@ -218,14 +218,14 @@ private struct MenuPopoverView: View {
                 onPreferences()
                 model.dismiss?()
             }
-            MenuPopoverRow(label: "About Matrix") {
+            MenuPopoverRow(label: "About Cipherfall") {
                 onAbout()
                 model.dismiss?()
             }
 
             menuDivider
 
-            MenuPopoverRow(label: "Quit Matrix", shortcut: "⌘Q") {
+            MenuPopoverRow(label: "Quit Cipherfall", shortcut: "⌘Q") {
                 onQuit()
             }
         }
