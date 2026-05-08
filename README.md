@@ -1,12 +1,12 @@
-# Cipherfall
+# Falling Code
 
 A standalone macOS app that brings the digital rain from *The Matrix* (1999) to your desktop, your lock screen, your menu bar, and an on-demand fullscreen takeover.
 
-![Cipherfall running on a MacBook Air](docs/demo.gif)
+![Falling Code running on a MacBook Air](docs/demo.gif)
 
 Built in Swift + Metal for macOS 14+ (Sequoia / Tahoe) on Apple Silicon. Mirrored half-width katakana flowing in green columns down a black screen, white-green leading characters, fading green trails, occasional stammer flickers, soft bloom on the heads, CRT scanlines and vignette. Five color themes, live previews, and a global hotkey to summon it from any app.
 
-> The visual is inspired by the iconic 1999 cypherpunk film — Cipherfall is an unaffiliated, unofficial fan project. *The Matrix* and related marks are trademarks of Warner Bros. Entertainment Inc.
+> The visual is inspired by the iconic 1999 cypherpunk film — Falling Code is an unaffiliated, unofficial fan project. *The Matrix* and related marks are trademarks of Warner Bros. Entertainment Inc.
 
 ## Features
 
@@ -18,7 +18,7 @@ Built in Swift + Metal for macOS 14+ (Sequoia / Tahoe) on Apple Silicon. Mirrore
 - **Animated menu-bar icon** — a tiny live render in your current theme that animates 24/7
 - **Themed popover menu** — left-click the icon to open it; the popover background is itself live rain in your theme
 - **Five themes** — Classic, Crimson, Amber CRT, Sepia, Solarized
-- **Touch ID dismiss** — tap the Touch ID button (or `⌃⌘Q`) and Cipherfall tears itself down behind the lock screen, so finger-unlock lands you on a clean desktop
+- **Touch ID dismiss** — tap the Touch ID button (or `⌃⌘Q`) and Falling Code tears itself down behind the lock screen, so finger-unlock lands you on a clean desktop
 
 ## Install
 
@@ -31,11 +31,11 @@ cd matrix-screensaver
 ./scripts/install-app.sh
 ```
 
-The script regenerates the Xcode project, builds Release, ad-hoc codesigns, and installs to `/Applications/Cipherfall.app`. Launch it and the icon appears in your menu bar. (No Dock icon — `LSUIElement` is set so it stays out of the way.)
+The script regenerates the Xcode project, builds Release, ad-hoc codesigns, and installs to `/Applications/Falling Code.app`. Launch it and the icon appears in your menu bar. (No Dock icon — `LSUIElement` is set so it stays out of the way.)
 
 ### Gatekeeper note
 
-The first time you launch you may see "Cipherfall can't be opened" — the bundle is ad-hoc signed, not notarized. **System Settings → Privacy & Security → Open Anyway**.
+The first time you launch you may see "Falling Code can't be opened" — the bundle is ad-hoc signed, not notarized. **System Settings → Privacy & Security → Open Anyway**.
 
 ## Usage
 
@@ -46,9 +46,9 @@ The first time you launch you may see "Cipherfall can't be opened" — the bundl
 | Toggle from anywhere | **⌃⌥⌘M** (works in any app, even fullscreen) |
 | Open Preferences | **Left-click → Preferences…** |
 | Dismiss fullscreen | Any mouse move, click, scroll, key press, gesture |
-| Dismiss to a clean desktop | Touch ID tap or `⌃⌘Q` (locks → Cipherfall tears down behind the lock screen → fingerprint-unlock lands on plain desktop) |
+| Dismiss to a clean desktop | Touch ID tap or `⌃⌘Q` (locks → Falling Code tears down behind the lock screen → fingerprint-unlock lands on plain desktop) |
 
-`cipherfall://` URL scheme is also wired up: `cipherfall://activate`, `cipherfall://dismiss`, `cipherfall://toggle`, `cipherfall://preferences`. Useful for Raycast, Alfred, Stream Deck, AppleScript, Hammerspoon — anything that can open a URL.
+`fallingcode://` URL scheme is also wired up: `fallingcode://activate`, `fallingcode://dismiss`, `fallingcode://toggle`, `fallingcode://preferences`. Useful for Raycast, Alfred, Stream Deck, AppleScript, Hammerspoon — anything that can open a URL.
 
 ## Configure
 
@@ -59,7 +59,7 @@ Open Preferences from the popover. The form sits over a live preview that update
 - **Speed** — global multiplier from 0.25× to 3.0×
 
 **Desktop**
-- **Use Cipherfall as desktop wallpaper** — live animated rain behind your icons. Pauses while a fullscreen session is active so the GPU isn't rendering twice.
+- **Use Falling Code as desktop wallpaper** — live animated rain behind your icons. Pauses while a fullscreen session is active so the GPU isn't rendering twice.
 - **Also show on lock screen** — sub-option; installs a per-screen still as the system wallpaper so the lock screen shows the rain in your current theme. Captures your previous wallpaper on first install and restores it on toggle-off.
 
 **Activation**
@@ -81,7 +81,7 @@ MatrixCore (framework)
 ├─ MatrixSettings       Speed, theme, etc. — persisted via UserDefaults
 └─ MatrixLayerHost      CAMetalLayer + display link, used by every host
 
-MatrixApp (the app — produces Cipherfall.app)
+MatrixApp (the app — produces Falling Code.app)
 ├─ AppDelegate          Wires the singletons: session, idle monitor,
 │                       wallpaper manager, system wallpaper, hotkey, menu
 ├─ MatrixSession        Fullscreen activation state machine (1 window /
@@ -102,7 +102,7 @@ MatrixApp (the app — produces Cipherfall.app)
                         preview
 ```
 
-The internal Swift class names retained the `Matrix*` prefix from the project's original codename — they're implementation detail nobody sees. Only the user-facing identity is Cipherfall.
+The internal Swift class names retained the `Matrix*` prefix from the project's original codename — they're implementation detail nobody sees. Only the user-facing identity is Falling Code.
 
 ### Render pipeline
 

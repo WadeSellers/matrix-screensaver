@@ -25,7 +25,7 @@
 			<string>com.wadesellers.cipherfall</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>cipherfall</string>
+				<string>fallingcode</string>
 			</array>
 		</dict>
 	</array>

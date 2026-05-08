@@ -96,7 +96,7 @@ final class SettingsWindowController: NSObject {
             backing: .buffered,
             defer: false
         )
-        window.title = "Cipherfall Settings"
+        window.title = "Falling Code Settings"
         // Title bar transparent so Matrix extends underneath it. Keeps the
         // close/minimize buttons visible against whatever rains under them.
         window.titlebarAppearsTransparent = true

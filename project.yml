@@ -72,7 +72,9 @@ targets:
 
   # Target name stays "MatrixApp" (and folder stays MatrixApp/) for
   # internal consistency with the Swift class names — only the
-  # *user-facing* identity rebrands to Cipherfall.
+  # *user-facing* identity rebrands to "Falling Code". Bundle ID
+  # stays "cipherfall" (the second-rebrand legacy) because Apple
+  # binds App Store Connect records permanently to the Bundle ID.
   MatrixApp:
     type: application
     platform: macOS
@@ -83,15 +85,18 @@ targets:
         embed: true
     settings:
       base:
+        # Bundle ID is permanent (Apple binds App Store records to it),
+        # so it stays "cipherfall" even though the user-facing name is
+        # now "Falling Code". Bundle ID is internal — never shown.
         PRODUCT_BUNDLE_IDENTIFIER: com.wadesellers.cipherfall
-        PRODUCT_NAME: Cipherfall
+        PRODUCT_NAME: Falling Code
         LD_RUNPATH_SEARCH_PATHS: "@executable_path/../Frameworks"
         ASSETCATALOG_COMPILER_APPICON_NAME: ""
         CURRENT_PROJECT_VERSION: 1
         MARKETING_VERSION: "0.1.0"
         # App Sandbox — required for Mac App Store distribution.
-        # See MatrixApp/Cipherfall.entitlements for the entitlement set.
-        CODE_SIGN_ENTITLEMENTS: MatrixApp/Cipherfall.entitlements
+        # See MatrixApp/FallingCode.entitlements for the entitlement set.
+        CODE_SIGN_ENTITLEMENTS: MatrixApp/FallingCode.entitlements
     info:
       path: MatrixApp/Info.plist
       properties:
@@ -107,14 +112,14 @@ targets:
         NSSupportsSuddenTermination: false
         NSPrincipalClass: NSApplication
         NSHumanReadableCopyright: "© 2026 Wade Sellers"
-        # URL scheme: cipherfall://activate, cipherfall://dismiss,
-        # cipherfall://toggle. Use to wire up Shortcuts.app, Raycast,
+        # URL scheme: fallingcode://activate, fallingcode://dismiss,
+        # fallingcode://toggle. Use to wire up Shortcuts.app, Raycast,
         # Alfred, Stream Deck, Hammerspoon, AppleScript — anything that
         # can open a URL.
         CFBundleURLTypes:
           - CFBundleURLName: com.wadesellers.cipherfall
             CFBundleURLSchemes:
-              - cipherfall
+              - fallingcode
 
   MatrixSaver:
     type: bundle

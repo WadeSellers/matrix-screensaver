@@ -218,14 +218,14 @@ private struct MenuPopoverView: View {
                 onPreferences()
                 model.dismiss?()
             }
-            MenuPopoverRow(label: "About Cipherfall") {
+            MenuPopoverRow(label: "About Falling Code") {
                 onAbout()
                 model.dismiss?()
             }
 
             menuDivider
 
-            MenuPopoverRow(label: "Quit Cipherfall", shortcut: "⌘Q") {
+            MenuPopoverRow(label: "Quit Falling Code", shortcut: "⌘Q") {
                 onQuit()
             }
         }
