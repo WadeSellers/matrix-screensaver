@@ -15,7 +15,10 @@ settings:
     ENABLE_HARDENED_RUNTIME: YES
     DEAD_CODE_STRIPPING: YES
     CODE_SIGN_STYLE: Automatic
-    CODE_SIGN_IDENTITY: "-"
+    # Wade's Apple Developer Program team. Xcode auto-fetches the
+    # right Apple Development / Apple Distribution certificate based
+    # on whether we're building locally or for upload.
+    DEVELOPMENT_TEAM: GV76VP4G8V
     CLANG_ENABLE_MODULES: YES
 
 targets:
