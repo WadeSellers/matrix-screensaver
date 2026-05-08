@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let systemWallpaperManager = SystemWallpaperManager()
     private var hotKeyManager: GlobalHotKeyManager?
     private var settingsController: SettingsWindowController?
+    private var onboardingController: OnboardingSheetController?
     private var settings: AppSettings = .defaults
 
     private let defaults = UserDefaults.standard
@@ -87,6 +88,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         hotKeyManager.register()
         self.hotKeyManager = hotKeyManager
+
+        // First-launch onboarding. Deferred via main.async so the menu
+        // bar icon installs first — the sheet visually points at it.
+        DispatchQueue.main.async { [weak self] in
+            self?.presentOnboardingIfNeeded()
+        }
+    }
+
+    /// Present the first-launch onboarding sheet exactly once. Persists
+    /// a UserDefaults flag on dismiss so subsequent launches skip it.
+    private func presentOnboardingIfNeeded() {
+        guard !OnboardingSheetController.hasSeenOnboarding(defaults) else { return }
+        let controller = OnboardingSheetController(defaults: defaults)
+        onboardingController = controller
+        controller.present()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
