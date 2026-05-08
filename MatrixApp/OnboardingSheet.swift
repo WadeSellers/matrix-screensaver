@@ -430,79 +430,37 @@ private struct HowToUsePage: View {
         PageScaffold(
             headline: "How to use it",
             visual: {
-                // Render the actual key caps for the global hotkey.
                 OnboardingKeyboardShortcutBadge(shortcut: "⌃⌥⌘M")
                     .frame(height: 64)
             },
             content: {
+                // Markdown bullets — SwiftUI parses **bold** and `code`
+                // inline, which avoids the fragile Text+Text+Text
+                // concatenation that broke page 2 layout.
                 VStack(alignment: .leading, spacing: 12) {
-                    bullet(
-                        number: 1,
-                        prefix: "Left-click",
-                        rest: " the icon in your menu bar to open the menu (themes, preferences, etc.)"
-                    )
-                    bullet(
-                        number: 2,
-                        prefix: "Right-click",
-                        rest: " or ",
-                        suffix: "⌃⌥⌘M",
-                        suffixIsKbd: true,
-                        tail: " to summon fullscreen rain instantly — works from any app"
-                    )
-                    bullet(
-                        number: 3,
-                        prefix: "Any input",
-                        rest: " dismisses fullscreen — mouse, scroll, keypress, gesture"
-                    )
+                    bullet(number: 1, markdown:
+                        "**Left-click** the icon in your menu bar to open the menu (themes, preferences, etc.)")
+                    bullet(number: 2, markdown:
+                        "**Right-click** or `⌃⌥⌘M` to summon fullscreen rain instantly — works from any app")
+                    bullet(number: 3, markdown:
+                        "**Any input** dismisses fullscreen — mouse, scroll, keypress, gesture")
                 }
             }
         )
     }
 
-    /// One numbered bullet row. `prefix` renders bold; `rest` is body
-    /// text; an optional `suffix` (rendered monospaced if `suffixIsKbd`)
-    /// followed by `tail` body text supports the bullet 2 layout
-    /// ("Right-click or ⌃⌥⌘M to summon...").
     @ViewBuilder
-    private func bullet(
-        number: Int,
-        prefix: String,
-        rest: String,
-        suffix: String? = nil,
-        suffixIsKbd: Bool = false,
-        tail: String? = nil
-    ) -> some View {
-        HStack(alignment: .top, spacing: 10) {
+    private func bullet(number: Int, markdown: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
             Text("\(number).")
                 .font(.system(size: 14, weight: .semibold, design: .monospaced))
                 .foregroundStyle(Color(red: 0.40, green: 0.95, blue: 0.55))
                 .frame(width: 18, alignment: .trailing)
-
-            (
-                Text(prefix)
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(.white)
-                + Text(rest)
-                    .font(.system(size: 14))
-                    .foregroundColor(.white.opacity(0.85))
-                + (suffix.map { s in
-                    suffixIsKbd
-                        ? Text(s)
-                            .font(.system(size: 14, weight: .semibold, design: .monospaced))
-                            .foregroundColor(.white)
-                        : Text(s)
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(.white)
-                } ?? Text(""))
-                + (tail.map {
-                    Text($0)
-                        .font(.system(size: 14))
-                        .foregroundColor(.white.opacity(0.85))
-                } ?? Text(""))
-            )
-            .shadow(color: .black.opacity(0.9), radius: 1.5, x: 0, y: 0)
-            .lineSpacing(2)
-            .fixedSize(horizontal: false, vertical: true)
+            Text(.init(markdown))
+                .font(.system(size: 14))
+                .foregroundStyle(.white.opacity(0.92))
+                .shadow(color: .black.opacity(0.9), radius: 1.5)
+                .lineSpacing(2)
         }
     }
 }
