@@ -1,5 +1,6 @@
 import Foundation
 import AppKit
+import CoreVideo
 import Metal
 import QuartzCore
 
@@ -17,13 +18,25 @@ import QuartzCore
 /// which uses the equivalent layer-hosting pattern with `AVPlayerLayer`.
 @MainActor
 public final class MatrixLayerHost {
-    public let metalLayer: CAMetalLayer
-    public let renderer: MatrixRenderer
+    // nonisolated(unsafe) so the CoreVideo render-thread callback can
+    // touch them. They're `let` (never reassigned), and CAMetalLayer +
+    // MatrixRenderer are safe for the single-writer access pattern used
+    // by the CV callback.
+    public nonisolated(unsafe) let metalLayer: CAMetalLayer
+    public nonisolated(unsafe) let renderer: MatrixRenderer
 
-    // nonisolated(unsafe) so deinit can invalidate the link to break the
-    // CADisplayLink → target retain. We only mutate from main-actor code.
-    private nonisolated(unsafe) var displayLink: CADisplayLink?
-    private nonisolated(unsafe) var displayLinkTarget: DisplayLinkTarget?
+    // CVDisplayLink instead of `screen.displayLink(target:selector:)`
+    // (CADisplayLink) because the latter was throttled to ~2fps for ~1s
+    // every ~2s on windows at `CGWindowLevelForKey(.desktopWindow)` —
+    // macOS treats wallpaper-level surfaces as low-priority for
+    // compositor scheduling. CVDisplayLink runs on a CoreVideo-owned
+    // thread tied to the display device, not the window, and isn't
+    // subject to that throttling.
+    //
+    // CVDisplayLink is technically deprecated in macOS 15 in favour of
+    // NSScreen.displayLink — but the replacement is what we just rejected,
+    // so we use the deprecated API.
+    private nonisolated(unsafe) var displayLink: CVDisplayLink?
 
     public var settings: MatrixSettings {
         get { renderer.settings }
@@ -73,46 +86,63 @@ public final class MatrixLayerHost {
         )
     }
 
-    /// Start the render loop bound to the given screen's vsync.
-    /// (`NSScreen.displayLink` is the only public way to get a `CADisplayLink`
-    /// on macOS — there is no `init(target:selector:)` on macOS.)
+    /// Start the render loop bound to the given screen's vsync via
+    /// CVDisplayLink.
     public func start(screen: NSScreen) {
         stop()
-        let target = DisplayLinkTarget { [weak self] in self?.tick() }
-        let link = screen.displayLink(
-            target: target,
-            selector: #selector(DisplayLinkTarget.fire)
-        )
-        link.add(to: .main, forMode: .common)
+
+        let displayID: CGDirectDisplayID = {
+            let key = NSDeviceDescriptionKey("NSScreenNumber")
+            if let n = screen.deviceDescription[key] as? NSNumber {
+                return CGDirectDisplayID(n.uint32Value)
+            }
+            return CGMainDisplayID()
+        }()
+
+        var link: CVDisplayLink?
+        CVDisplayLinkCreateWithCGDisplay(displayID, &link)
+        guard let link else { return }
+
+        let opaque = Unmanaged.passUnretained(self).toOpaque()
+        CVDisplayLinkSetOutputCallback(link, { _, _, _, _, _, ctx -> CVReturn in
+            guard let ctx else { return kCVReturnSuccess }
+            let host = Unmanaged<MatrixLayerHost>.fromOpaque(ctx).takeUnretainedValue()
+            host.cvTick()
+            return kCVReturnSuccess
+        }, opaque)
+        CVDisplayLinkStart(link)
         displayLink = link
-        displayLinkTarget = target
     }
 
     public func stop() {
-        displayLink?.invalidate()
+        if let link = displayLink {
+            CVDisplayLinkStop(link)
+        }
         displayLink = nil
     }
 
     public var isPaused: Bool {
-        get { displayLink?.isPaused ?? true }
-        set { displayLink?.isPaused = newValue }
+        get {
+            guard let link = displayLink else { return true }
+            return !CVDisplayLinkIsRunning(link)
+        }
+        set {
+            guard let link = displayLink else { return }
+            if newValue { CVDisplayLinkStop(link) } else { CVDisplayLinkStart(link) }
+        }
     }
 
     deinit {
-        // displayLink uses a weak ref so this is safe to call from deinit.
-        displayLink?.invalidate()
+        if let link = displayLink {
+            CVDisplayLinkStop(link)
+        }
     }
 
-    private func tick() {
+    /// Called from a CoreVideo-owned thread. Renders directly without
+    /// hopping to main: hopping would re-introduce the same wallpaper-
+    /// level window throttling we're escaping.
+    private nonisolated func cvTick() {
         guard let drawable = metalLayer.nextDrawable() else { return }
         renderer.renderFrame(into: drawable, drawableSize: metalLayer.drawableSize)
     }
-}
-
-/// Tiny wrapper so CADisplayLink doesn't retain the host through a strong
-/// `target:` reference (CADisplayLink retains its target).
-private final class DisplayLinkTarget: NSObject {
-    let callback: () -> Void
-    init(callback: @escaping () -> Void) { self.callback = callback }
-    @objc func fire() { callback() }
 }
