@@ -1,0 +1,64 @@
+{
+  "identifier" : "B7A7C5F4-4E91-4D7B-8C2F-1A2B3C4D5E6F",
+  "nonRenewingSubscriptions" : [],
+  "products" : [
+    {
+      "displayPrice" : "2.99",
+      "familyShareable" : false,
+      "internalID" : "TIP001",
+      "localizations" : [
+        {
+          "description" : "A small tip to support Falling Code's development. Nothing in the app changes — just gratitude.",
+          "displayName" : "Buy me a coffee",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.wadesellers.cipherfall.tip.coffee",
+      "referenceName" : "Tip — Coffee",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "9.99",
+      "familyShareable" : false,
+      "internalID" : "TIP002",
+      "localizations" : [
+        {
+          "description" : "A larger tip to support Falling Code's development. Nothing in the app changes — just gratitude.",
+          "displayName" : "Buy me lunch",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.wadesellers.cipherfall.tip.lunch",
+      "referenceName" : "Tip — Lunch",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "19.99",
+      "familyShareable" : false,
+      "internalID" : "TIP003",
+      "localizations" : [
+        {
+          "description" : "A generous tip to support Falling Code's development. Nothing in the app changes — just gratitude.",
+          "displayName" : "You're awesome",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.wadesellers.cipherfall.tip.awesome",
+      "referenceName" : "Tip — Awesome",
+      "type" : "Consumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "0",
+    "_developerTeamID" : "GV76VP4G8V",
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : []
+  },
+  "subscriptionGroups" : [],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

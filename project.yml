@@ -80,6 +80,12 @@ targets:
     platform: macOS
     sources:
       - path: MatrixApp
+    # Force xcodegen to generate a shared scheme for this target.
+    # Without an explicit `scheme:` block, xcodegen will skip scheme
+    # generation if Xcode user-data has previously suppressed
+    # autocreation — which happens whenever the user modifies the
+    # scheme via Xcode UI (e.g. attaching Configuration.storekit).
+    scheme: {}
     dependencies:
       - target: MatrixCore
         embed: true

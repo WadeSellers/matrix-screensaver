@@ -11,6 +11,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotKeyManager: GlobalHotKeyManager?
     private var settingsController: SettingsWindowController?
     private var onboardingController: OnboardingSheetController?
+    // Owns the three "Support development" Consumable IAPs. Constructed
+    // at launch so its Transaction.updates listener is live from the
+    // first run-loop tick (StoreKit 2 requirement: finish every
+    // transaction promptly or Apple will redeliver it forever).
+    private let tipJar = TipJarManager()
+    // Fullscreen "Decode" thank-you Easter egg fired after a verified
+    // tip purchase. Lives at the app level (not Preferences) because
+    // the animation needs to take over every display.
+    private let thankYouController = ThankYouController()
     private var settings: AppSettings = .defaults
 
     private let defaults = UserDefaults.standard
@@ -18,6 +27,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Load persisted settings.
         settings = AppSettings(loadedFrom: defaults)
+
+        // Hook the tip-jar success path into the fullscreen "Decode"
+        // thank-you takeover. Set after AppDelegate's properties are
+        // initialized so `[weak self]` is meaningful.
+        tipJar.onPurchaseSucceeded = { [weak self] product in
+            self?.thankYouController.present(for: product)
+        }
 
         // Wire up the session, status bar, idle monitor, settings, wallpaper.
         let session = MatrixSession()
@@ -29,6 +45,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             },
             onPreferences: { [weak self] in
                 self?.openPreferences()
+            },
+            onMeetTheMaker: { [weak self] in
+                self?.openPreferences(jumpToTab: .support)
             },
             onQuit: {
                 NSApp.terminate(nil)
@@ -98,11 +117,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Present the first-launch onboarding sheet exactly once. Persists
     /// a UserDefaults flag on dismiss so subsequent launches skip it.
+    /// The onboarding's first page is the red/green pill choice, which
+    /// reaches back here via `applyPillChoice` to seed live settings.
     private func presentOnboardingIfNeeded() {
         guard !OnboardingSheetController.hasSeenOnboarding(defaults) else { return }
-        let controller = OnboardingSheetController(defaults: defaults)
+        let controller = OnboardingSheetController(
+            defaults: defaults,
+            onPillChosen: { [weak self] pill in
+                self?.applyPillChoice(pill)
+            }
+        )
         onboardingController = controller
         controller.present()
+    }
+
+    /// Map a first-launch pill choice onto the app's actual settings.
+    /// Red pill = maximum-immersion preset; blue pill = leave the user
+    /// in the lightweight "just a menu-bar icon" mode. Applied through
+    /// `applyAndPersist` so live managers (wallpaper window, system
+    /// wallpaper still, idle monitor) reconfigure in the same frame.
+    private func applyPillChoice(_ pill: OnboardingPillChoice) {
+        var next = settings
+        switch pill {
+        case .red:
+            next.wallpaperEnabled = true
+            next.lockScreenEnabled = true
+            next.autoActivateOnIdle = true
+            next.idleThresholdMinutes = 5
+        case .blue:
+            next.wallpaperEnabled = false
+            next.lockScreenEnabled = false
+            next.autoActivateOnIdle = false
+        }
+        applyAndPersist(next)
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -131,16 +178,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func openPreferences() {
+    /// Open the Preferences window. Pass `jumpToTab` to land on a
+    /// specific tab — used by the "Meet the maker" popover entry to
+    /// open straight to Support.
+    private func openPreferences(jumpToTab: SettingsTab? = nil) {
         if settingsController == nil {
             settingsController = SettingsWindowController(
                 initial: settings,
+                tipJar: tipJar,
                 onChange: { [weak self] newSettings in
                     self?.applyAndPersist(newSettings)
                 }
             )
         }
-        settingsController?.show()
+        settingsController?.show(jumpToTab: jumpToTab)
     }
 
     private func applyAndPersist(_ newSettings: AppSettings) {

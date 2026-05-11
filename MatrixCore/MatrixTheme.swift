@@ -77,6 +77,20 @@ public extension MatrixTheme {
         vignetteAmount: 0.80
     )
 
+    /// Cobalt — saturated electric blue, the canonical "blue pill"
+    /// color from the 1999 film. Slightly higher bloom than Classic
+    /// because blue phosphor reads a touch dimmer than green at the
+    /// same luminance, and we want the heads to pop.
+    static let cobalt = MatrixTheme(
+        name: "Cobalt",
+        headColor:      SIMD4(0.87, 0.93, 1.00, 0),  // #DDEEFF
+        nearTrailColor: SIMD4(0.27, 0.60, 1.00, 0),  // #4499FF
+        midTrailColor:  SIMD4(0.07, 0.33, 0.67, 0),  // #1155AA
+        farTrailColor:  SIMD4(0.00, 0.07, 0.20, 0),  // #001133
+        bloomStrength: 1.30,
+        vignetteAmount: 0.72
+    )
+
     /// Amber CRT — 1980s amber phosphor terminal. Max scanlines,
     /// prominent vignette.
     static let amberCRT = MatrixTheme(
@@ -116,8 +130,11 @@ public extension MatrixTheme {
         vignetteAmount: 0.65
     )
 
-    /// Ordered list used to populate the Settings picker.
+    /// Ordered list used to populate the Settings picker. The three
+    /// vivid phosphor themes (Classic / Crimson / Cobalt) lead — they
+    /// reference the film's color palette directly — followed by the
+    /// three "look" themes.
     static let allPresets: [MatrixTheme] = [
-        .classic, .crimson, .amberCRT, .sepia, .solarized
+        .classic, .crimson, .cobalt, .amberCRT, .sepia, .solarized
     ]
 }

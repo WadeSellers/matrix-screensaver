@@ -29,17 +29,20 @@ final class MenuPopoverViewController: NSViewController {
 
     private let onToggle: () -> Void
     private let onPreferences: () -> Void
+    private let onMeetTheMaker: () -> Void
     private let onQuit: () -> Void
 
     init(
         model: MenuPopoverModel,
         onToggle: @escaping () -> Void,
         onPreferences: @escaping () -> Void,
+        onMeetTheMaker: @escaping () -> Void,
         onQuit: @escaping () -> Void
     ) {
         self.model = model
         self.onToggle = onToggle
         self.onPreferences = onPreferences
+        self.onMeetTheMaker = onMeetTheMaker
         self.onQuit = onQuit
         super.init(nibName: nil, bundle: nil)
     }
@@ -60,7 +63,7 @@ final class MenuPopoverViewController: NSViewController {
             model: model,
             onToggle: onToggle,
             onPreferences: onPreferences,
-            onAbout: { [weak self] in self?.showAboutPanel() },
+            onMeetTheMaker: onMeetTheMaker,
             onQuit: onQuit
         )
         let host = NSHostingView(rootView: menuView)
@@ -102,41 +105,6 @@ final class MenuPopoverViewController: NSViewController {
         previewView?.layerHost?.settings = settings
     }
 
-    /// Show macOS's standard About panel with our custom credits.
-    /// Lives on the controller so the SwiftUI menu can call it via a
-    /// `[weak self]` thunk created at view-load time — sidesteps the
-    /// ordering problem of needing `MenuBarItem.self` before its
-    /// `super.init` completes.
-    fileprivate func showAboutPanel() {
-        // Bring our accessory app forward so the panel becomes key,
-        // otherwise it can appear behind other apps.
-        NSApp.activate(ignoringOtherApps: true)
-
-        let credits = NSMutableAttributedString(
-            string: "A screen-accurate replica of the digital rain from " +
-                    "The Matrix (1999), built in Swift + Metal.\n\n" +
-                    "github.com/WadeSellers/matrix-screensaver",
-            attributes: [
-                .font: NSFont.systemFont(ofSize: 11),
-                .foregroundColor: NSColor.secondaryLabelColor,
-                .paragraphStyle: { () -> NSParagraphStyle in
-                    let p = NSMutableParagraphStyle()
-                    p.alignment = .center
-                    return p
-                }()
-            ]
-        )
-        let urlRange = (credits.string as NSString)
-            .range(of: "github.com/WadeSellers/matrix-screensaver")
-        if urlRange.location != NSNotFound {
-            credits.addAttribute(
-                .link,
-                value: "https://github.com/WadeSellers/matrix-screensaver",
-                range: urlRange
-            )
-        }
-        NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])
-    }
 }
 
 // MARK: - Preview view (Matrix renderer behind the menu)
@@ -199,7 +167,7 @@ private struct MenuPopoverView: View {
     @Bindable var model: MenuPopoverModel
     let onToggle: () -> Void
     let onPreferences: () -> Void
-    let onAbout: () -> Void
+    let onMeetTheMaker: () -> Void
     let onQuit: () -> Void
 
     var body: some View {
@@ -218,8 +186,8 @@ private struct MenuPopoverView: View {
                 onPreferences()
                 model.dismiss?()
             }
-            MenuPopoverRow(label: "About Falling Code") {
-                onAbout()
+            MenuPopoverRow(label: "Meet the maker") {
+                onMeetTheMaker()
                 model.dismiss?()
             }
 

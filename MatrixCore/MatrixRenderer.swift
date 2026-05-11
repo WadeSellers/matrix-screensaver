@@ -29,6 +29,15 @@ public final class MatrixRenderer: NSObject, MTKViewDelegate {
 
     public var settings: MatrixSettings = .defaults
 
+    /// Optional override for the grid's target row count. Default `nil`
+    /// uses `GridLayout`'s built-in default (60 rows tall), which is
+    /// tuned for fullscreen and large-window renders. Tiny render
+    /// surfaces (e.g. the onboarding pill capsules at ~130×52pt) need
+    /// far fewer rows so the cells are big enough to show actual
+    /// glyph silhouettes instead of single-pixel noise. Set this
+    /// BEFORE the renderer's first frame.
+    public var targetRowCountOverride: Int?
+
     private var grid: GridLayout = GridLayout(drawableSize: CGSize(width: 1, height: 1))
     private var columnBuffer: MTLBuffer?
     private var sceneTexture: MTLTexture?
@@ -201,7 +210,11 @@ public final class MatrixRenderer: NSObject, MTKViewDelegate {
     }
 
     private func applyDrawableSize(_ size: CGSize) {
-        grid = GridLayout(drawableSize: size)
+        if let rows = targetRowCountOverride {
+            grid = GridLayout(drawableSize: size, targetRowCount: rows)
+        } else {
+            grid = GridLayout(drawableSize: size)
+        }
         rebuildColumnBuffer()
         ensureSceneTexture(size: size)
         bloomPipeline.resize(to: size)

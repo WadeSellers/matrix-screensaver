@@ -3,6 +3,23 @@ import SwiftUI
 import Metal
 import MatrixCore
 
+// MARK: - Public types
+
+/// The user's first-launch choice between two preset configurations,
+/// dressed up as the Matrix's iconic pill scene (red and blue, the
+/// canonical 1999-film pair).
+///
+/// - `.red`  — Maximum immersion. Wallpaper, lock-screen still, and idle
+///             activation all on. The "you wake up and the world is
+///             different" path.
+/// - `.blue` — Just a taste. Only the menu-bar icon and the global
+///             hotkey are live; everything else stays off. The user
+///             summons the rain when they want it.
+enum OnboardingPillChoice {
+    case red
+    case blue
+}
+
 // MARK: - Controller
 
 /// Hosts the first-launch onboarding sheet. One-shot — present once,
@@ -32,13 +49,18 @@ final class OnboardingSheetController: NSObject {
     private weak var previewView: OnboardingPreviewView?
     private var panelDelegate: OnboardingPanelDelegate?
     private let defaults: UserDefaults
+    private let onPillChosen: (OnboardingPillChoice) -> Void
 
     /// Strong self-reference held while the panel is on-screen so the
     /// caller doesn't have to retain the controller. Cleared on dismiss.
     private static var live: OnboardingSheetController?
 
-    init(defaults: UserDefaults = .standard) {
+    init(
+        defaults: UserDefaults = .standard,
+        onPillChosen: @escaping (OnboardingPillChoice) -> Void = { _ in }
+    ) {
         self.defaults = defaults
+        self.onPillChosen = onPillChosen
         super.init()
     }
 
@@ -67,8 +89,12 @@ final class OnboardingSheetController: NSObject {
         let onDismiss: @MainActor () -> Void = { [weak self] in
             self?.dismiss()
         }
+        let pillCallback = onPillChosen
 
-        let pages = OnboardingRootView(onFinish: onDismiss)
+        let pages = OnboardingRootView(
+            onFinish: onDismiss,
+            onPillChosen: pillCallback
+        )
         let host = NSHostingView(rootView: pages)
         host.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(host)
@@ -228,15 +254,21 @@ final class OnboardingPreviewView: NSView {
 
 // MARK: - SwiftUI root
 
-/// The whole onboarding flow. Three pages controlled by a `currentPage`
+/// The whole onboarding flow. Four pages controlled by a `currentPage`
 /// state — manual transitions rather than `TabView(.page)` so we can
 /// drive the per-page advance/dismiss buttons cleanly.
+///
+/// Page 0 is the Matrix pill choice — the user picks Red (max
+/// immersion) or Green (just a taste), which seeds AppSettings before
+/// the rest of the onboarding rolls.
 private struct OnboardingRootView: View {
     let onFinish: () -> Void
+    let onPillChosen: (OnboardingPillChoice) -> Void
 
     @State private var currentPage: Int = 0
+    @State private var pillChoice: OnboardingPillChoice?
 
-    private let totalPages = 3
+    private let totalPages = 4
 
     var body: some View {
         ZStack {
@@ -264,8 +296,12 @@ private struct OnboardingRootView: View {
                 // distinct subviews per page (each owns its own visual).
                 Group {
                     switch currentPage {
-                    case 0: WelcomePage()
-                    case 1: HowToUsePage()
+                    case 0:
+                        ChoosePillPage(chosen: pillChoice) { pill in
+                            handlePillChoice(pill)
+                        }
+                    case 1: WelcomePage()
+                    case 2: HowToUsePage()
                     default: GetStartedPage()
                     }
                 }
@@ -280,6 +316,22 @@ private struct OnboardingRootView: View {
             }
             .padding(.horizontal, 32)
             .padding(.bottom, 24)
+        }
+    }
+
+    /// User tapped one of the two pills on page 0. Stash the choice,
+    /// notify the AppDelegate so it can re-seed AppSettings live, then
+    /// advance to the rest of the onboarding after a beat so the click
+    /// animation plays through.
+    private func handlePillChoice(_ pill: OnboardingPillChoice) {
+        guard pillChoice == nil else { return }
+        pillChoice = pill
+        onPillChosen(pill)
+        // Beat for the chosen pill's "swallowed" animation, then advance.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.65) {
+            withAnimation(.easeInOut(duration: 0.35)) {
+                currentPage = 1
+            }
         }
     }
 
@@ -307,7 +359,7 @@ private struct OnboardingRootView: View {
 
     private var bottomBar: some View {
         HStack {
-            // Page dots — three round indicators showing position.
+            // Page dots — round indicators showing position.
             HStack(spacing: 6) {
                 ForEach(0..<totalPages, id: \.self) { i in
                     Circle()
@@ -320,24 +372,30 @@ private struct OnboardingRootView: View {
 
             Spacer()
 
-            Button(action: advance) {
-                Text(currentPage == totalPages - 1 ? "Get Started" : "Next →")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.black)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 7)
-                            // The signature Matrix near-trail green —
-                            // hand-tuned to be readable as a button
-                            // without screaming "neon highlighter".
-                            .fill(Color(red: 0.40, green: 0.95, blue: 0.55))
-                    )
-                    .contentShape(Rectangle())
+            // On page 0 (pill choice) there's no Next button — the only
+            // way to advance is by tapping a pill. The pill click itself
+            // is the affirmative action; an extra button would be
+            // redundant and break the scene.
+            if currentPage > 0 {
+                Button(action: advance) {
+                    Text(currentPage == totalPages - 1 ? "Get Started" : "Next →")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 7)
+                                // The signature Matrix near-trail green —
+                                // hand-tuned to be readable as a button
+                                // without screaming "neon highlighter".
+                                .fill(Color(red: 0.40, green: 0.95, blue: 0.55))
+                        )
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .focusEffectDisabled()
+                .keyboardShortcut(.defaultAction)
             }
-            .buttonStyle(.plain)
-            .focusEffectDisabled()
-            .keyboardShortcut(.defaultAction)
         }
         .padding(.top, 16)
     }
@@ -381,6 +439,287 @@ private struct PageScaffold<Visual: View, Content: View>: View {
         }
     }
 }
+
+// MARK: - Page 0: Pill choice
+
+/// The Matrix's iconic red-pill / green-pill choice. The user is asked
+/// how deep they want the rain to go: red (max immersion — wallpaper,
+/// lock-screen still, idle activation) or green (just a taste — menu-bar
+/// icon and hotkey only). The choice seeds AppSettings via the parent's
+/// callback before the rest of the onboarding rolls.
+private struct ChoosePillPage: View {
+    let chosen: OnboardingPillChoice?
+    let onChoose: (OnboardingPillChoice) -> Void
+
+    @State private var hoveredPill: OnboardingPillChoice?
+
+    var body: some View {
+        VStack(spacing: 22) {
+            Spacer(minLength: 0)
+
+            Text("How deep does the rabbit hole go?")
+                .font(.system(size: 22, weight: .bold))
+                .foregroundStyle(.white)
+                .shadow(color: .black.opacity(0.85), radius: 2, x: 0, y: 0)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 16)
+
+            Text("Choose a pill. You can change your mind later in Preferences.")
+                .font(.system(size: 13))
+                .foregroundStyle(.white.opacity(0.75))
+                .shadow(color: .black.opacity(0.85), radius: 1.5)
+                .multilineTextAlignment(.center)
+
+            // Two pills side-by-side. Click one to commit; the other
+            // fades out, the chosen one bumps and glows, then the parent
+            // advances to the next page.
+            HStack(spacing: 28) {
+                pillColumn(
+                    pill: .red,
+                    title: "Maximum immersion",
+                    subtitle: "Wallpaper, lock screen, and auto-activate when idle. Falling Code is everywhere."
+                )
+                pillColumn(
+                    pill: .blue,
+                    title: "Just a taste",
+                    subtitle: "Menu-bar icon only. Summon the rain on demand with ⌃⌥⌘M or right-click."
+                )
+            }
+            .padding(.top, 4)
+
+            Spacer(minLength: 0)
+        }
+        .animation(.easeInOut(duration: 0.3), value: chosen)
+        .animation(.easeInOut(duration: 0.15), value: hoveredPill)
+    }
+
+    @ViewBuilder
+    private func pillColumn(pill: OnboardingPillChoice, title: String, subtitle: String) -> some View {
+        let isChosen = chosen == pill
+        let isOther  = chosen != nil && chosen != pill
+        let isHovered = hoveredPill == pill && chosen == nil
+
+        VStack(spacing: 12) {
+            PillShape(pill: pill, isChosen: isChosen, isHovered: isHovered)
+                .frame(width: 130, height: 52)
+
+            VStack(spacing: 4) {
+                Text(title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .shadow(color: .black.opacity(0.9), radius: 1.5)
+                Text(subtitle)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.white.opacity(0.72))
+                    .shadow(color: .black.opacity(0.9), radius: 1.5)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 180)
+                    .lineSpacing(1)
+            }
+        }
+        .opacity(isOther ? 0.25 : 1.0)
+        .scaleEffect(isChosen ? 1.06 : (isHovered ? 1.04 : 1.0))
+        .contentShape(Rectangle())
+        .onHover { hovering in
+            hoveredPill = hovering ? pill : nil
+        }
+        .onTapGesture {
+            onChoose(pill)
+        }
+        // Disable interaction once a choice is locked in so the user
+        // can't double-tap during the advance animation.
+        .allowsHitTesting(chosen == nil)
+    }
+}
+
+/// The physical pill itself — a capsule with live Matrix rain pouring
+/// through it (Classic green for the green pill, Crimson red for the
+/// red pill), a gloss highlight on top to read as 3D, and a soft outer
+/// glow that brightens on hover and intensifies once chosen.
+private struct PillShape: View {
+    let pill: OnboardingPillChoice
+    let isChosen: Bool
+    let isHovered: Bool
+
+    var body: some View {
+        ZStack {
+            // Outer glow — sits behind the body, breathes brighter on
+            // hover and brightest when chosen. Achieved with a blurred
+            // copy of the capsule, not a shadow modifier, so we can
+            // crank the radius without the rest of the page getting
+            // darker fringes.
+            Capsule()
+                .fill(glowColor)
+                .blur(radius: isChosen ? 22 : (isHovered ? 14 : 8))
+                .opacity(isChosen ? 0.95 : (isHovered ? 0.7 : 0.45))
+                .scaleEffect(isChosen ? 1.15 : 1.05)
+
+            // Live Matrix rain rendered into the pill body. The same
+            // renderer that drives the wallpaper / fullscreen / preview
+            // hosts elsewhere — just clipped to a Capsule and tuned to
+            // a lower row count so the cells are visible at pill size.
+            // Crimson rain for the red pill, Cobalt for the blue pill.
+            PillRainView(theme: pill == .red ? .crimson : .cobalt)
+                .clipShape(Capsule())
+                .overlay(
+                    // Soft tonal wash on top of the rain so the pill
+                    // body reads as a saturated capsule and not just
+                    // "a rectangle of rain" — pulls the head/trail
+                    // greens toward the pill's identity color.
+                    LinearGradient(
+                        colors: tintWashColors,
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .blendMode(.multiply)
+                    .opacity(0.45)
+                    .clipShape(Capsule())
+                )
+                .allowsHitTesting(false)
+
+            // Inner gloss strip across the top third — the cheap-and-
+            // effective trick that makes a flat capsule read as 3D.
+            Capsule()
+                .fill(
+                    LinearGradient(
+                        stops: [
+                            .init(color: Color.white.opacity(0.55), location: 0.00),
+                            .init(color: Color.white.opacity(0.10), location: 0.45),
+                            .init(color: Color.clear,                location: 0.55)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .blendMode(.screen)
+                .allowsHitTesting(false)
+
+            // Outline stroke — a thin lighter rim so the pill has a
+            // crisp edge against the dark scrim.
+            Capsule()
+                .stroke(Color.white.opacity(0.22), lineWidth: 0.5)
+        }
+    }
+
+    /// Wash that biases the rain texture toward the pill's color
+    /// identity. Multiplied over the rain so the brighter heads stay
+    /// bright but the mid-tones lean red or blue.
+    private var tintWashColors: [Color] {
+        switch pill {
+        case .red:
+            return [
+                Color(red: 1.00, green: 0.55, blue: 0.55),
+                Color(red: 0.85, green: 0.25, blue: 0.28)
+            ]
+        case .blue:
+            return [
+                Color(red: 0.75, green: 0.88, blue: 1.00),
+                Color(red: 0.30, green: 0.55, blue: 0.95)
+            ]
+        }
+    }
+
+    private var glowColor: Color {
+        switch pill {
+        case .red:  return Color(red: 1.0,  green: 0.28, blue: 0.32)
+        case .blue: return Color(red: 0.30, green: 0.62, blue: 1.00)
+        }
+    }
+}
+
+// MARK: - Live Matrix rain inside a pill
+
+/// SwiftUI wrapper around a tiny layer-hosted `MatrixLayerHost` rendering
+/// a themed rain at pill scale. Uses `targetRowCountOverride` to make
+/// the cells big enough at ~130×52pt that the falling glyphs read as
+/// glyphs, not as one-pixel noise.
+private struct PillRainView: NSViewRepresentable {
+    let theme: MatrixTheme
+
+    func makeNSView(context: Context) -> PillRainNSView {
+        PillRainNSView(theme: theme)
+    }
+
+    func updateNSView(_ view: PillRainNSView, context: Context) {
+        view.applyTheme(theme)
+    }
+}
+
+/// Owns a `MatrixLayerHost` sized to the view and themed per the pill.
+/// Mirrors `OnboardingPreviewView` / `SettingsPreviewView` exactly —
+/// `self.layer` assigned before `wantsLayer = true` so AppKit treats us
+/// as layer-hosting (not layer-backed) and doesn't trample the metal
+/// layer with redraws.
+final class PillRainNSView: NSView {
+    private var layerHost: MatrixLayerHost?
+    private var theme: MatrixTheme
+
+    init(theme: MatrixTheme) {
+        self.theme = theme
+        super.init(frame: .zero)
+        let host = CALayer()
+        host.backgroundColor = NSColor.black.cgColor
+        host.frame = self.bounds
+        self.layer = host
+        self.wantsLayer = true
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) not supported") }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if window != nil {
+            startRenderIfNeeded()
+        } else {
+            // Detached from window — tear down so we don't leak a
+            // CVDisplayLink running on a hidden surface.
+            layerHost?.stop()
+            layerHost = nil
+        }
+    }
+
+    func applyTheme(_ newTheme: MatrixTheme) {
+        theme = newTheme
+        guard let host = layerHost else { return }
+        var settings = host.settings
+        settings.theme = newTheme
+        host.settings = settings
+    }
+
+    private func startRenderIfNeeded() {
+        guard layerHost == nil,
+              let device = MTLCreateSystemDefaultDevice(),
+              let host = MatrixLayerHost(device: device),
+              let hostLayer = self.layer,
+              let screen = window?.screen ?? NSScreen.main else { return }
+        // Low row count = big cells = readable glyphs at pill scale.
+        // Tuned to ~6 rows tall × however-many-cols-fit-the-width.
+        host.renderer.targetRowCountOverride = 6
+        host.install(in: hostLayer, scale: screen.backingScaleFactor)
+        var settings: MatrixSettings = .defaults
+        settings.theme = theme
+        host.settings = settings
+        host.start(screen: screen)
+        layerHost = host
+    }
+
+    override func viewDidChangeBackingProperties() {
+        super.viewDidChangeBackingProperties()
+        guard let host = layerHost, let hostLayer = self.layer else { return }
+        let scale = window?.backingScaleFactor ?? 2.0
+        host.resize(bounds: hostLayer.bounds, scale: scale)
+    }
+
+    override func layout() {
+        super.layout()
+        guard let host = layerHost, let hostLayer = self.layer else { return }
+        let scale = window?.backingScaleFactor ?? 2.0
+        host.resize(bounds: hostLayer.bounds, scale: scale)
+    }
+}
+
+// MARK: - Page 1: Welcome (was page 0 before the pill page slid in)
 
 private struct WelcomePage: View {
     var body: some View {

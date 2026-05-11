@@ -13,11 +13,17 @@ final class SettingsWindowController: NSObject {
     private var windowDelegate: SettingsWindowDelegate?
 
     private let model: SettingsModel
+    private let tipJar: TipJarManager
     private let externalOnChange: (AppSettings) -> Void
 
-    init(initial: AppSettings, onChange: @escaping (AppSettings) -> Void) {
+    init(
+        initial: AppSettings,
+        tipJar: TipJarManager,
+        onChange: @escaping (AppSettings) -> Void
+    ) {
         self.externalOnChange = onChange
         self.model = SettingsModel(initial: initial)
+        self.tipJar = tipJar
         super.init()
         // After super.init, self is available — wire model.onChange to push
         // updates both to the persistence callback and to the live preview.
@@ -52,7 +58,11 @@ final class SettingsWindowController: NSObject {
         }
     }
 
-    func show() {
+    /// Show the Preferences window. Passing `jumpToTab` switches to that
+    /// tab before bringing the window front — used by the "Meet the
+    /// maker" popover entry to land on the Support tab.
+    func show(jumpToTab: SettingsTab? = nil) {
+        if let tab = jumpToTab { model.selectedTab = tab }
         if let existing = window {
             NSApp.activate(ignoringOtherApps: true)
             existing.makeKeyAndOrderFront(nil)
@@ -60,7 +70,12 @@ final class SettingsWindowController: NSObject {
             return
         }
 
-        let frameRect = NSRect(x: 0, y: 0, width: 480, height: 520)
+        // 480×560 — a modest bump over the original 480×520 to fit the
+        // Maker card on the Support tab. The 640 we tried first felt
+        // way too long on the General tab (which has no extra content
+        // to fill the space). Support tab content was tightened in
+        // parallel so it fits in 560 cleanly.
+        let frameRect = NSRect(x: 0, y: 0, width: 480, height: 560)
 
         // Two sibling subviews inside a regular content view:
         //   - preview (layer-hosting, has the CAMetalLayer)
@@ -75,8 +90,16 @@ final class SettingsWindowController: NSObject {
         preview.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(preview)
 
-        let formHost = NSHostingView(rootView: SettingsView(model: model))
+        let formHost = NSHostingView(rootView: SettingsView(model: model, tipJar: tipJar))
         formHost.translatesAutoresizingMaskIntoConstraints = false
+        // Stop NSHostingView from driving the window size. The default
+        // on macOS 13+ includes `.preferredContentSize`, which makes
+        // the window grow whenever SwiftUI's ideal content size is
+        // larger than the current frame — that's why switching to the
+        // taller Support tab was inflating the window and switching
+        // back to General never shrank it. Empty options = our fixed
+        // 480×560 frame wins, content scrolls / clips if it has to.
+        formHost.sizingOptions = []
         contentView.addSubview(formHost)
 
         NSLayoutConstraint.activate([
@@ -155,6 +178,12 @@ final class SettingsPreviewView: NSView {
               let host = MatrixLayerHost(device: device),
               let hostLayer = self.layer,
               let screen = window?.screen ?? NSScreen.main else { return }
+        // Render fewer, larger rows than the wallpaper does (default 60).
+        // The cells end up noticeably chunkier than the rain on the
+        // desktop behind us, so the Preferences window reads as its
+        // own surface instead of blending into the wallpaper. Tuned
+        // by eye against a 4K screen — adjust if it ever looks off.
+        host.renderer.targetRowCountOverride = 22
         host.install(in: hostLayer, scale: screen.backingScaleFactor)
         host.settings = settings
         host.start(screen: screen)
@@ -205,6 +234,11 @@ final class SettingsModel {
             }
         }
     }
+    /// Which Preferences tab is currently selected. Lifted from
+    /// `@State` inside `SettingsView` to the model so external callers
+    /// (notably `SettingsWindowController.show(jumpToTab:)`) can switch
+    /// tabs without poking SwiftUI's view tree directly.
+    var selectedTab: SettingsTab = .general
     var onChange: ((AppSettings) -> Void)?
 
     init(initial: AppSettings) {
@@ -387,7 +421,106 @@ private struct KeyboardShortcutBadge: View {
 
 // MARK: - Settings form
 
+/// File-internal (was `private`) so `SettingsModel.selectedTab` and
+/// `AppDelegate.openPreferences(jumpToTab:)` can refer to it.
+enum SettingsTab: Hashable {
+    case general
+    case support
+}
+
 private struct SettingsView: View {
+    @Bindable var model: SettingsModel
+    @Bindable var tipJar: TipJarManager
+
+    /// Signature Matrix near-trail green. Used for both the selected-tab
+    /// pill background and as the SwiftUI `.tint`, which themes slider
+    /// tracks, toggle chrome, and theme-tile selection halo.
+    private let matrixGreen = Color(red: 0.40, green: 0.95, blue: 0.55)
+
+    var body: some View {
+        ZStack {
+            // Darkening scrim sandwiched between the rain (behind us, in
+            // the sibling NSView) and the SwiftUI controls (above). Keeps
+            // the Matrix visible at the panel edges where text doesn't
+            // sit, but reduces it to atmosphere behind the labels.
+            // Same gradient profile as OnboardingSheet's body backdrop.
+            LinearGradient(
+                stops: [
+                    .init(color: Color.black.opacity(0.62), location: 0.00),
+                    .init(color: Color.black.opacity(0.42), location: 0.50),
+                    .init(color: Color.black.opacity(0.62), location: 1.00)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .allowsHitTesting(false)
+
+            VStack(spacing: 0) {
+                // Custom tab header. SwiftUI's TabView on macOS renders
+                // its tab bar via NSTabView, which uses system-blue for
+                // the selected tab and doesn't respect `.tint(...)`.
+                // Hand-rolled segmented buttons let us paint the
+                // selected pill in Matrix green.
+                tabHeader
+
+                Group {
+                    switch model.selectedTab {
+                    case .general: GeneralSettingsView(model: model)
+                    case .support: SupportView(tipJar: tipJar)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .tint(matrixGreen)
+    }
+
+    private var tabHeader: some View {
+        HStack(spacing: 6) {
+            tabButton(label: "General", icon: "gear", tab: .general)
+            tabButton(label: "Support", icon: "heart", tab: .support)
+        }
+        .padding(.top, 16)
+        .padding(.bottom, 8)
+    }
+
+    private func tabButton(label: String, icon: String, tab: SettingsTab) -> some View {
+        let isSelected = model.selectedTab == tab
+        return Button {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                model.selectedTab = tab
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .semibold))
+                Text(label)
+                    .font(.system(size: 13, weight: isSelected ? .semibold : .medium))
+            }
+            // Selected pill uses black text on green for max contrast.
+            // Unselected uses dimmed white so it reads on top of the
+            // dark scrim without competing for attention.
+            .foregroundStyle(isSelected ? Color.black : Color.white.opacity(0.70))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 7)
+                    .fill(isSelected ? matrixGreen : Color.clear)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 7)
+                    .stroke(isSelected ? Color.clear : Color.white.opacity(0.12), lineWidth: 1)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .focusEffectDisabled()
+    }
+}
+
+/// The original Settings Form, extracted so it can live as one tab in
+/// the TabView. All field bindings unchanged.
+private struct GeneralSettingsView: View {
     @Bindable var model: SettingsModel
 
     private var appVersion: String {

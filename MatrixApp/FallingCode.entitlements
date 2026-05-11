@@ -6,5 +6,9 @@
 	     network, and inter-process access unless explicitly entitled. -->
 	<key>com.apple.security.app-sandbox</key>
 	<true/>
+	<!-- StoreKit 2 needs outbound network access to reach Apple's
+	     servers for product metadata and purchase verification. -->
+	<key>com.apple.security.network.client</key>
+	<true/>
 </dict>
 </plist>

@@ -60,6 +60,7 @@ final class MenuBarItem: NSObject {
     init(
         onToggle: @escaping () -> Void,
         onPreferences: @escaping () -> Void,
+        onMeetTheMaker: @escaping () -> Void,
         onQuit: @escaping () -> Void
     ) {
         self.onToggle = onToggle
@@ -70,14 +71,15 @@ final class MenuBarItem: NSObject {
         self.statusItem = item
 
         // Build the popover controller before super.init so the
-        // `let popoverController` constant is satisfied. The About
-        // action is owned by the controller itself (as a method) so
-        // we don't need a back-reference to `self` here.
+        // `let popoverController` constant is satisfied. The "Meet the
+        // maker" closure is passed straight through; it routes to
+        // AppDelegate.openPreferences(jumpToTab: .support).
         let model = MenuPopoverModel()
         popoverController = MenuPopoverViewController(
             model: model,
             onToggle: onToggle,
             onPreferences: onPreferences,
+            onMeetTheMaker: onMeetTheMaker,
             onQuit: onQuit
         )
 
