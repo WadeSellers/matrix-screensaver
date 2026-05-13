@@ -12,6 +12,10 @@ import StoreKit
 /// macOS keyboard-focus visual.
 struct SupportView: View {
     @Bindable var tipJar: TipJarManager
+    /// Invoked when the user taps the Feedback card. Plumbed in from
+    /// `AppDelegate` via `SettingsWindowController` → `SettingsView`
+    /// so this view doesn't need to know about NSWindow / NSPanel.
+    let onFeedback: () -> Void
 
     /// Signature near-trail green from MatrixTheme.classic. Used for tier
     /// names + price text so the tip jar reads as part of the Matrix
@@ -45,6 +49,12 @@ struct SupportView: View {
                     .transition(.opacity)
             }
 
+            // FAQ + Feedback action row. The matched-pair pattern Wade
+            // referenced (Usage for Claude's support tab): two small
+            // side-by-side cards under the tip row that give users a
+            // way to talk back, not just leave a tip.
+            faqAndFeedbackRow
+
             Spacer(minLength: 0)
 
             footer
@@ -54,6 +64,81 @@ struct SupportView: View {
         .animation(.easeInOut(duration: 0.2), value: tipJar.purchaseInFlightID)
         .animation(.easeInOut(duration: 0.25), value: tipJar.lastThankYouTier)
         .animation(.easeInOut(duration: 0.2), value: tipJar.lastError)
+    }
+
+    // MARK: - FAQ + Feedback row
+
+    private var faqAndFeedbackRow: some View {
+        HStack(spacing: 12) {
+            // FAQ card — opens the repo README in the default browser.
+            // For v1.0 there's no dedicated in-app FAQ; the README is
+            // a serviceable substitute. Future iteration: build a real
+            // searchable FAQ surface in-app.
+            actionCard(
+                icon: "questionmark.circle.fill",
+                tint: Color(red: 0.40, green: 0.70, blue: 1.00),  // a cool blue
+                title: "FAQ",
+                subtitle: "Browse answers to common questions about Falling Code."
+            ) {
+                if let url = URL(string: "https://github.com/WadeSellers/matrix-screensaver#readme") {
+                    NSWorkspace.shared.open(url)
+                }
+            }
+
+            actionCard(
+                icon: "envelope.fill",
+                tint: accentGreen,
+                title: "Feedback",
+                subtitle: "Report a bug or suggest a feature — your input shapes the next update."
+            ) {
+                onFeedback()
+            }
+        }
+    }
+
+    private func actionCard(
+        icon: String,
+        tint: Color,
+        title: String,
+        subtitle: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Image(systemName: icon)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(tint)
+                    Text(title)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.primary)
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                }
+                Text(subtitle)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.leading)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(tint.opacity(0.08))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(tint.opacity(0.32), lineWidth: 1)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+        .focusEffectDisabled()
     }
 
     // MARK: - Header

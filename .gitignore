@@ -29,3 +29,6 @@ Package.resolved
 
 # Built saver bundles (output of install.sh)
 *.saver/
+
+# Cloudflare wrangler local cache (account ID, temp build artifacts)
+worker/.wrangler/

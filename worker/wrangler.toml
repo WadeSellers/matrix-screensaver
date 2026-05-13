@@ -1,0 +1,20 @@
+# Cloudflare Workers config — Falling Code feedback proxy.
+#
+# Deploy from this directory:
+#   wrangler deploy
+#
+# Set secrets (one-time):
+#   wrangler secret put GITHUB_TOKEN
+#   wrangler secret put APP_SECRET
+#
+# View live logs:
+#   wrangler tail
+
+name = "falling-code-feedback"
+main = "falling-code-feedback.js"
+compatibility_date = "2026-05-12"
+
+# Observability — keep logs and metrics on so we can `wrangler tail`
+# during testing and diagnose any 502s without redeploying.
+[observability]
+enabled = true

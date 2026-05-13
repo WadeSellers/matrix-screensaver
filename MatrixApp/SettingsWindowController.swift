@@ -15,15 +15,18 @@ final class SettingsWindowController: NSObject {
     private let model: SettingsModel
     private let tipJar: TipJarManager
     private let externalOnChange: (AppSettings) -> Void
+    private let onFeedback: () -> Void
 
     init(
         initial: AppSettings,
         tipJar: TipJarManager,
-        onChange: @escaping (AppSettings) -> Void
+        onChange: @escaping (AppSettings) -> Void,
+        onFeedback: @escaping () -> Void
     ) {
         self.externalOnChange = onChange
         self.model = SettingsModel(initial: initial)
         self.tipJar = tipJar
+        self.onFeedback = onFeedback
         super.init()
         // After super.init, self is available — wire model.onChange to push
         // updates both to the persistence callback and to the live preview.
@@ -90,7 +93,11 @@ final class SettingsWindowController: NSObject {
         preview.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(preview)
 
-        let formHost = NSHostingView(rootView: SettingsView(model: model, tipJar: tipJar))
+        let formHost = NSHostingView(rootView: SettingsView(
+            model: model,
+            tipJar: tipJar,
+            onFeedback: onFeedback
+        ))
         formHost.translatesAutoresizingMaskIntoConstraints = false
         // Stop NSHostingView from driving the window size. The default
         // on macOS 13+ includes `.preferredContentSize`, which makes
@@ -431,6 +438,7 @@ enum SettingsTab: Hashable {
 private struct SettingsView: View {
     @Bindable var model: SettingsModel
     @Bindable var tipJar: TipJarManager
+    let onFeedback: () -> Void
 
     /// Signature Matrix near-trail green. Used for both the selected-tab
     /// pill background and as the SwiftUI `.tint`, which themes slider
@@ -466,7 +474,7 @@ private struct SettingsView: View {
                 Group {
                     switch model.selectedTab {
                     case .general: GeneralSettingsView(model: model)
-                    case .support: SupportView(tipJar: tipJar)
+                    case .support: SupportView(tipJar: tipJar, onFeedback: onFeedback)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

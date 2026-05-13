@@ -20,6 +20,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // tip purchase. Lives at the app level (not Preferences) because
     // the animation needs to take over every display.
     private let thankYouController = ThankYouController()
+    // Floating "Send Feedback" window. Presented when the user taps the
+    // Feedback card on the Support tab. Pipes submissions through a
+    // Cloudflare Worker that creates a GitHub Issue on our behalf.
+    private let feedbackController = FeedbackController()
     private var settings: AppSettings = .defaults
 
     private let defaults = UserDefaults.standard
@@ -188,6 +192,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 tipJar: tipJar,
                 onChange: { [weak self] newSettings in
                     self?.applyAndPersist(newSettings)
+                },
+                onFeedback: { [weak self] in
+                    self?.feedbackController.present()
                 }
             )
         }
