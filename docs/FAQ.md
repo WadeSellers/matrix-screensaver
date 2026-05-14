@@ -1,6 +1,23 @@
-# Falling Code — Frequently Asked Questions
+<p align="center">
+  <img src="app-icon-1024.png" alt="Falling Code app icon" width="96" height="96">
+</p>
 
-Answers to the questions people ask most about Falling Code. If you don't see your question here, use the **Send Feedback** button in the app's Support tab.
+<h1 align="center">Falling Code — FAQ</h1>
+
+<p align="center"><i>Quick answers to the questions people ask most.</i></p>
+
+---
+
+## Contents
+
+- [Performance & battery](#performance--battery)
+- [Setup & display](#setup--display)
+- [Behavior & usage](#behavior--usage)
+- [Purchase, support & source](#purchase-support--source)
+
+---
+
+## Performance & battery
 
 <details>
 <summary><strong>Will Falling Code slow down my Mac?</strong></summary>
@@ -10,6 +27,20 @@ at 60fps using a tiny amount of GPU. It's designed to run all day
 without affecting battery life or performance.
 
 </details>
+
+<details>
+<summary><strong>Will the live wallpaper drain my laptop battery?</strong></summary>
+
+On a desktop or plugged-in laptop, no. On battery, the renderer
+automatically reduces frame rate and bloom quality to save power. You
+can also turn the live wallpaper off in Preferences if you only want
+the menu-bar features.
+
+</details>
+
+---
+
+## Setup & display
 
 <details>
 <summary><strong>Does it work with multiple monitors?</strong></summary>
@@ -28,16 +59,6 @@ Code from `/Applications`. Then it'll start every time you log in.
 </details>
 
 <details>
-<summary><strong>Will the live wallpaper drain my laptop battery?</strong></summary>
-
-On a desktop or plugged-in laptop, no. On battery, the renderer
-automatically reduces frame rate and bloom quality to save power. You
-can also turn the live wallpaper off in Preferences if you only want
-the menu-bar features.
-
-</details>
-
-<details>
 <summary><strong>How do I uninstall Falling Code?</strong></summary>
 
 Drag Falling Code from `/Applications` to the Trash. Your settings
@@ -46,12 +67,17 @@ when macOS removes the app's sandbox container.
 
 </details>
 
+---
+
+## Behavior & usage
+
 <details>
 <summary><strong>Why doesn't Falling Code appear in the Dock?</strong></summary>
 
 It's a menu-bar app by design — no Dock icon to keep your workspace
 clean. Click the green glyph in your menu bar to access everything,
-or use ⌃⌥⌘M to summon fullscreen rain from anywhere.
+or use <kbd>⌃</kbd><kbd>⌥</kbd><kbd>⌘</kbd><kbd>M</kbd> to summon
+fullscreen rain from anywhere.
 
 </details>
 
@@ -64,6 +90,10 @@ a persistent state. For an always-on look, use the live wallpaper
 feature instead.
 
 </details>
+
+---
+
+## Purchase, support & source
 
 <details>
 <summary><strong>Can I use this on multiple Macs with one purchase?</strong></summary>
@@ -91,3 +121,10 @@ Yes — Falling Code is open source. The repo lives at
 the code, file issues, and even contribute PRs if you like.
 
 </details>
+
+---
+
+<p align="center">
+  <strong>Still stuck?</strong><br>
+  Tap <b>Send Feedback</b> on the Support tab in Preferences — it goes straight to Wade.
+</p>
