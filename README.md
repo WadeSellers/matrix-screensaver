@@ -133,4 +133,4 @@ Color stops, fall speed, glyph swap rate, and trail length come from [carlnewton
 
 ## License
 
-TBD. The code is yours to read; the Hiragino Sans font is shipped with macOS and used at runtime via Core Text (no font is bundled in this repo).
+MIT — see [LICENSE](LICENSE). The Hiragino Sans font is shipped with macOS and used at runtime via Core Text (no font is bundled in this repo).
