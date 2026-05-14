@@ -29,17 +29,17 @@ Live digital rain wallpaper
 
 ---
 
-## 3. Promotional Text *(155 / 170 chars)*
+## 3. Promotional Text *(154 / 170 chars)*
 
 ```
-The green code from 1999, falling on your desktop in real time. Five themes, animated menu-bar icon, global hotkey, and a fullscreen takeover from any app.
+The green code from 1999, falling on your desktop in real time. Six themes, animated menu-bar icon, global hotkey, and a fullscreen takeover from any app.
 ```
 
 Visible above the description, editable without resubmitting a build — good place for the hook. Leads with the cultural reference (1999) and lists the four standout features in one breath.
 
 ---
 
-## 4. Description *(1,880 / 4,000 chars)*
+## 4. Description *(1,913 / 4,000 chars)*
 
 ```
 If you've seen green code falling down a black screen, you'll recognize this.
@@ -56,10 +56,11 @@ Falling Code brings the digital rain — inspired by the iconic 1999 cypherpunk 
 • Themed popover menu — left-click the icon, the menu background is itself live rain
 • Touch ID dismiss — finger-unlock lands you on a clean desktop, behind the lock screen
 
-— FIVE COLOR THEMES —
+— SIX COLOR THEMES —
 
 • Classic — the green you remember
 • Crimson — deep red phosphor
+• Cobalt — electric blue phosphor
 • Amber CRT — warm vintage terminal
 • Sepia — paper and ink
 • Solarized — desaturated developer palette
@@ -85,7 +86,7 @@ This is an unaffiliated, unofficial fan project. The Matrix and related marks ar
 - Section breaks use em-dashes and ALL-CAPS headers, which render cleanly on App Store and break up the wall of text on a phone scroll.
 - Bulleted feature lists where they earn it; paragraph form where they don't.
 - Closing trademark disclaimer mirrors the README — defensible fair use, sets expectations.
-- Aimed for ~1500 chars per spec; landed at 1,880. Slightly over target but every section earns its space — strip the Technical block if you want to come down to ~1,500.
+- Aimed for ~1500 chars per spec; landed at 1,913. Slightly over target but every section earns its space — strip the Technical block if you want to come down to ~1,500.
 
 **Tip for App Store Connect:** that 4,000-char ceiling is the *byte* limit on the platform; em-dashes and unicode bullets count as multiple bytes in some validators. If you see an over-limit error, swap `—` for `--` and `•` for `-`.
 
@@ -238,5 +239,5 @@ Standard form. Year matches launch year per spec.
 - [ ] Add `PRIVACY.md` to repo root with the text above
 - [ ] Confirm `https://github.com/WadeSellers/matrix-screensaver/blob/main/PRIVACY.md` resolves
 - [ ] Verify the repo Issues tab is enabled (Settings → Features → Issues)
-- [ ] Take fresh App Store screenshots in all five themes (separate task, not text-side)
+- [ ] Take fresh App Store screenshots in all six themes (separate task, not text-side)
 - [ ] Decide: keep the GitHub repo name `matrix-screensaver` or rename to `falling-code`? If renaming, update the two URLs above.
