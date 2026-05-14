@@ -70,17 +70,14 @@ struct SupportView: View {
 
     private var faqAndFeedbackRow: some View {
         HStack(spacing: 12) {
-            // FAQ card — opens the repo README in the default browser.
-            // For v1.0 there's no dedicated in-app FAQ; the README is
-            // a serviceable substitute. Future iteration: build a real
-            // searchable FAQ surface in-app.
+            // FAQ card — opens the FAQ doc on GitHub in the default browser.
             actionCard(
                 icon: "questionmark.circle.fill",
                 tint: Color(red: 0.40, green: 0.70, blue: 1.00),  // a cool blue
                 title: "FAQ",
                 subtitle: "Browse answers to common questions about Falling Code."
             ) {
-                if let url = URL(string: "https://github.com/WadeSellers/matrix-screensaver#readme") {
+                if let url = URL(string: "https://github.com/WadeSellers/matrix-screensaver/blob/main/docs/FAQ.md") {
                     NSWorkspace.shared.open(url)
                 }
             }
