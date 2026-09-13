@@ -120,6 +120,11 @@ targets:
         NSSupportsSuddenTermination: false
         NSPrincipalClass: NSApplication
         NSHumanReadableCopyright: "© 2026 Wade Sellers"
+        # Primary App Store category. Xcode warns at archive time when
+        # this is unset; App Store Connect requires it either way.
+        # Secondary category (Entertainment) is set on the ASC listing,
+        # not here — Info.plist only carries the primary.
+        LSApplicationCategoryType: public.app-category.utilities
         # URL scheme: fallingcode://activate, fallingcode://dismiss,
         # fallingcode://toggle. Use to wire up Shortcuts.app, Raycast,
         # Alfred, Stream Deck, Hammerspoon, AppleScript — anything that
