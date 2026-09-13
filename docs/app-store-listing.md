@@ -77,15 +77,13 @@ Click a tile in Preferences to switch. A live preview updates as you change sett
 • Zero data collected. No network calls. No analytics.
 
 Requires macOS 14 Sonoma or later. Apple Silicon only.
-
-This is an unaffiliated, unofficial fan project. The Matrix and related marks are trademarks of Warner Bros. Entertainment Inc.
 ```
 
 **Notes on the draft:**
 - First sentence is the recognition hook — it's how a casual scroller decides to keep reading.
 - Section breaks use em-dashes and ALL-CAPS headers, which render cleanly on App Store and break up the wall of text on a phone scroll.
 - Bulleted feature lists where they earn it; paragraph form where they don't.
-- Closing trademark disclaimer mirrors the README — defensible fair use, sets expectations.
+- No trademark disclaimer: a disclaimer isn't a license, and naming the property in the description reads as an admission under guideline 5.2.1. The app stands as falling code.
 - Aimed for ~1500 chars per spec; landed at 1,913. Slightly over target but every section earns its space — strip the Technical block if you want to come down to ~1,500.
 
 **Tip for App Store Connect:** that 4,000-char ceiling is the *byte* limit on the platform; em-dashes and unicode bullets count as multiple bytes in some validators. If you see an over-limit error, swap `—` for `--` and `•` for `-`.

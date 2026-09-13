@@ -32,3 +32,6 @@ Package.resolved
 
 # Cloudflare wrangler local cache (account ID, temp build artifacts)
 worker/.wrangler/
+
+# Screenshot source material (large; masters + screen recordings)
+screenshots/masters/

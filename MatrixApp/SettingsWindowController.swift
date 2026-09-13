@@ -565,7 +565,7 @@ private struct GeneralSettingsView: View {
             }
 
             Section {
-                Toggle("Use Matrix as desktop wallpaper", isOn: Binding(
+                Toggle("Use Falling Code as desktop wallpaper", isOn: Binding(
                     get: { model.settings.wallpaperEnabled },
                     set: { model.settings.wallpaperEnabled = $0 }
                 ))

@@ -176,6 +176,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case "dismiss":    session?.deactivate()
             case "toggle":     session?.toggle()
             case "preferences": openPreferences()
+#if DEBUG
+            // Debug-only: fire the Decode takeover without a purchase.
+            // Xcode's StoreKit test payment sheet doesn't render its
+            // confirm button on macOS, so the real path can't be driven
+            // when capturing App Store screenshots. Pick a tier with
+            // `?tier=coffee|lunch|awesome`; defaults to the top tier.
+            case "decode":
+                let requestedTier = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                    .queryItems?.first(where: { $0.name == "tier" })?.value
+                let product = requestedTier
+                    .flatMap { tier in tipJar.products.first(where: { $0.id.hasSuffix(".\(tier)") }) }
+                    ?? tipJar.products.last
+                if let product {
+                    thankYouController.present(for: product)
+                } else {
+                    NSLog("Falling Code: no products loaded — can't fire the Decode")
+                }
+#endif
             default:
                 NSLog("Falling Code: ignoring unknown URL action '\(action)'")
             }

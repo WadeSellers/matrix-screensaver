@@ -753,7 +753,7 @@ private struct WelcomePage: View {
                 .frame(height: 100)
             },
             content: {
-                Text("The digital rain from *The Matrix* (1999), brought to your Mac as a live wallpaper, lock-screen still, screensaver replacement, and on-demand fullscreen takeover.")
+                Text("Endless falling code, brought to your Mac as a live wallpaper, lock-screen still, screensaver replacement, and on-demand fullscreen takeover.")
                     .font(.system(size: 14))
                     .foregroundStyle(.white.opacity(0.85))
                     .shadow(color: .black.opacity(0.9), radius: 1.5, x: 0, y: 0)
