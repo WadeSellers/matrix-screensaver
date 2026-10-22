@@ -39,7 +39,7 @@ Visible above the description, editable without resubmitting a build — good pl
 
 ---
 
-## 4. Description *(2,010 / 4,000 chars)*
+## 4. Description *(1,890 / 4,000 chars)*
 
 ```
 If you've seen green code falling down a black screen, you'll recognize this.
