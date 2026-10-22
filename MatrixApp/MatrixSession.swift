@@ -2,14 +2,6 @@ import Cocoa
 import CoreGraphics
 import MatrixCore
 
-/// Why a session started. The PIN lock defaults to guarding only the
-/// walk-away case (`.idle`); "Also when I start it myself" extends it
-/// to `.manual` (hotkey, menu, right-click, URL scheme).
-enum ActivationReason: Sendable {
-    case idle
-    case manual
-}
-
 /// The activation state machine. Tracks whether Matrix is showing,
 /// owns the per-screen windows during an active session, and listens
 /// for input that should dismiss it.
@@ -23,10 +15,10 @@ enum ActivationReason: Sendable {
 final class MatrixSession {
     /// Called whenever active state changes (true = showing Matrix).
     var statusObserver: ((Bool) -> Void)?
-    /// Asked once per activation: should a session started for this
-    /// reason be PIN-locked? AppDelegate answers from settings + the
-    /// Keychain. Nil = never lock.
-    var lockPolicy: ((ActivationReason) -> Bool)?
+    /// Asked once per activation: should this session be PIN-locked?
+    /// AppDelegate answers from settings + the Keychain. Nil = never
+    /// lock.
+    var lockPolicy: (() -> Bool)?
 
     private(set) var isActive: Bool = false
     /// True while a PIN is required to dismiss.
@@ -127,13 +119,13 @@ final class MatrixSession {
         lock.applyTheme(newSettings.theme)
     }
 
-    /// Hotkey / menu / URL toggle. Starting counts as `.manual`;
-    /// stopping goes through `requestDismiss`, so it respects the lock.
+    /// Hotkey / menu / URL toggle. Stopping goes through
+    /// `requestDismiss`, so it respects the lock.
     func toggle() {
-        if isActive { requestDismiss() } else { activate(reason: .manual) }
+        if isActive { requestDismiss() } else { activate() }
     }
 
-    func activate(reason: ActivationReason = .manual) {
+    func activate() {
         guard !isActive else { return }
         isActive = true
         isFadingOut = false
@@ -153,7 +145,7 @@ final class MatrixSession {
         // Decide the lock once, up front. The Keychain record is the
         // source of truth for the PIN length; no record = no lock,
         // whatever the settings say.
-        if lockPolicy?(reason) == true, let record = PINStore.loadRecord() {
+        if lockPolicy?() == true, let record = PINStore.loadRecord() {
             engageLock(pinLength: record.length)
         }
         statusObserver?(true)

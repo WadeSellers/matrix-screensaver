@@ -68,8 +68,7 @@ Open Preferences from the popover. The form sits over a live preview that update
 - **Toggle anywhere** — the global hotkey (display-only for now)
 - **Activate when idle** — auto-fire after the threshold
 - **Idle threshold** — 1–30 minutes
-- **Require PIN to dismiss** — turning it on opens a set-PIN sheet (4–8 digits, twice); changing or turning it off asks for the current PIN. By default it only locks sessions that started because you went idle
-- **Also when I start it myself** — also lock hotkey / menu / URL activations
+- **Require PIN to dismiss** — turning it on opens a set-PIN sheet (4–8 digits, twice); changing or turning it off asks for the current PIN. When on, every session needs the PIN, however it started
 
 The PIN is stored as a salted PBKDF2 hash in your Keychain, never in plain text. While locked, the Dock, menu bar, app switching and Force Quit are disabled; locking the Mac (Touch ID tap or `⌃⌘Q`) still dismisses, because unlocking the Mac already proves it's you. It's a privacy curtain, not security — the Mac's own lock screen is the real lock.
 

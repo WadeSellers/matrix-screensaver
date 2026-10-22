@@ -44,8 +44,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         session.applySettings(settings.matrix)
         // Read live settings at each activation, so flipping the PIN
         // switches in Preferences applies to the very next session.
-        session.lockPolicy = { [weak self] reason in
-            self?.settings.pinLockActive(for: reason) ?? false
+        session.lockPolicy = { [weak self] in
+            self?.settings.pinLockActive ?? false
         }
 
         let menuBarItem = MenuBarItem(
@@ -104,7 +104,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let idleMonitor = IdleMonitor(thresholdSeconds: settings.idleThresholdMinutes * 60)
         idleMonitor.isEnabled = settings.autoActivateOnIdle
         idleMonitor.onIdle = { [weak session] in
-            session?.activate(reason: .idle)
+            session?.activate()
         }
         idleMonitor.start()
         self.idleMonitor = idleMonitor
@@ -190,7 +190,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard url.scheme == "fallingcode" else { continue }
             let action = url.host ?? url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
             switch action {
-            case "activate":   session?.activate(reason: .manual)
+            case "activate":   session?.activate()
             // Goes through requestDismiss, so a URL can never lift a
             // PIN-locked session (it's silently refused).
             case "dismiss":    session?.requestDismiss(raiseKeypadIfLocked: false)

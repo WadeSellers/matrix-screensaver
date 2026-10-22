@@ -96,10 +96,9 @@ on **Require PIN to dismiss** (next question).
 <summary><strong>Can I make it ask for a PIN before it goes away?</strong></summary>
 
 Yes. Preferences → Activation → **Require PIN to dismiss**. Pick 4 to 8
-digits and enter them twice. From then on, when the rain starts because
-you walked away, any key or click brings up a keypad over the rain, and
-only your PIN lifts it. Turn on **Also when I start it myself** to lock
-hotkey and menu activations too.
+digits and enter them twice. From then on, whenever the rain is up
+(idle, hotkey or menu), any key or click brings up a keypad over the
+rain, and only your PIN lifts it.
 
 Forgot it? Click **Use Touch ID or password** under the keypad, or lock
 your Mac (Touch ID tap or <kbd>⌃</kbd><kbd>⌘</kbd><kbd>Q</kbd>) and

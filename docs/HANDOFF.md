@@ -63,8 +63,9 @@ Built 2026-10-22 on **`claude/pin-lock`**, PR open, **not merged** —
 Before archiving 1.1, bump `MARKETING_VERSION` / `CFBundleShortVersionString`
 to 1.1.0 and `CFBundleVersion` to 2 in project.yml (all four targets).
 
-What it is: Preferences → Activation → "Require PIN to dismiss" (+ "Also
-when I start it myself", default off = only idle activations lock). A
+What it is: Preferences → Activation → "Require PIN to dismiss" (on = every
+session locks, idle or started by hand; "Also when I start it myself"
+was cut 2026-10-22 at Wade's call). A
 locked session raises a Decode-style keypad over the rain on input; the
 PIN, Touch ID / Mac password, or the Mac's own screen lock end it.
 

@@ -637,7 +637,6 @@ private struct GeneralSettingsView: View {
                         // be a way around that.
                         var fresh = AppSettings.defaults
                         fresh.pinLockEnabled = model.settings.pinLockEnabled
-                        fresh.pinLockAppliesToManual = model.settings.pinLockAppliesToManual
                         model.settings = fresh
                     }
                     .controlSize(.small)
@@ -678,11 +677,6 @@ private struct GeneralSettingsView: View {
         ))
 
         if pinLockOn {
-            Toggle("Also when I start it myself", isOn: Binding(
-                get: { model.settings.pinLockAppliesToManual },
-                set: { model.settings.pinLockAppliesToManual = $0 }
-            ))
-
             LabeledContent("PIN") {
                 Button("Change PIN…") { pinSheet = .change }
                     .controlSize(.small)
