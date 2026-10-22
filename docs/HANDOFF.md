@@ -8,6 +8,20 @@
 
 Last updated: 2026-10-22 (Mac Mini session — PIN lock built on a branch for 1.1)
 
+## 1.1.0 build 2 — uploaded 2026-10-22
+
+PIN to dismiss merged (PR #5). Version bumped to **1.1.0 / build 2**,
+`ITSAppUsesNonExemptEncryption: false` added. Archived and uploaded
+**headlessly** — no Organizer needed:
+`xcodebuild -exportArchive` with an ExportOptions.plist of
+`method app-store-connect`, `destination upload`, `teamID GV76VP4G8V`,
+`signingStyle automatic`, plus `-allowProvisioningUpdates`.
+
+1.0 was never submitted, so 1.1 is the first submission. On the App
+Store Connect version page: change the version number from 1.0 to 1.1
+(editable until first submit), select build 2, attach the three tip
+IAPs, then submit. "What's New" isn't shown for a first version.
+
 ---
 
 ## Where the project stands
