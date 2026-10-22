@@ -6,7 +6,7 @@
 > **Keep it current:** whenever project state changes materially,
 > update this doc in the same commit.
 
-Last updated: 2026-09-13 (MacBook session — build 1 uploaded to Apple)
+Last updated: 2026-10-22 (Mac Mini session — PIN lock built on a branch for 1.1)
 
 ---
 
@@ -53,6 +53,34 @@ Store description — users discover it via "Meet the maker."
 
 ~~Were the six theme screenshots ever taken?~~ — resolved 2026-09-13,
 they weren't; shot fresh that night. See below.
+
+---
+
+## In flight: 1.1 — PIN to dismiss (branch `claude/pin-lock`)
+
+Built 2026-10-22 on **`claude/pin-lock`**, PR open, **not merged** —
+`main` stays exactly what build 1 was archived from. Target: **1.1**.
+Before archiving 1.1, bump `MARKETING_VERSION` / `CFBundleShortVersionString`
+to 1.1.0 and `CFBundleVersion` to 2 in project.yml (all four targets).
+
+What it is: Preferences → Activation → "Require PIN to dismiss" (+ "Also
+when I start it myself", default off = only idle activations lock). A
+locked session raises a Decode-style keypad over the rain on input; the
+PIN, Touch ID / Mac password, or the Mac's own screen lock end it.
+
+Where it lives: `PINStore.swift` (PBKDF2 hash in Keychain + attempt
+policy), `PINLockController.swift`, `PINKeypadView.swift`,
+`SetPINSheet.swift`; `MatrixSession` gained `ActivationReason`,
+`requestDismiss` (respects the lock) vs `deactivate` (unconditional).
+
+Verified by a temporary self-test (since removed): lock engages,
+presentation options applied and restored, URL dismiss / hotkey refused,
+quit refused, right PIN unlocks, cooldown blocks a right PIN, screen
+lock dismisses. **Not yet verified by hand:** the keypad's look on all
+six themes, the Set-PIN sheet, and actually completing Touch ID /
+password from the keypad (the prompt is a `coreautha` window at layer
+1000 = `.screenSaver`; the rain drops to 999 while it's up). Do one
+hands-on pass on a Mac before merging.
 
 ---
 

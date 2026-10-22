@@ -87,7 +87,28 @@ fullscreen rain from anywhere.
 Fullscreen mode is intentionally dismissed by any input (mouse,
 scroll, keypress) — it's meant to be a quick atmospheric moment, not
 a persistent state. For an always-on look, use the live wallpaper
-feature instead.
+feature instead. If you want it to stay up until *you* come back, turn
+on **Require PIN to dismiss** (next question).
+
+</details>
+
+<details>
+<summary><strong>Can I make it ask for a PIN before it goes away?</strong></summary>
+
+Yes. Preferences → Activation → **Require PIN to dismiss**. Pick 4 to 8
+digits and enter them twice. From then on, when the rain starts because
+you walked away, any key or click brings up a keypad over the rain, and
+only your PIN lifts it. Turn on **Also when I start it myself** to lock
+hotkey and menu activations too.
+
+Forgot it? Click **Use Touch ID or password** under the keypad, or lock
+your Mac (Touch ID tap or <kbd>⌃</kbd><kbd>⌘</kbd><kbd>Q</kbd>) and
+unlock it as usual. Either one always works. After five wrong tries the
+keypad pauses for 30 seconds, doubling up to five minutes.
+
+It's a privacy curtain for an open-plan office or a shared room, not
+security: your Mac's own lock screen is the real lock. The PIN is kept
+as a salted hash in your Keychain, never in plain text.
 
 </details>
 
