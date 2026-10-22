@@ -40,7 +40,15 @@ enum PINGlyphs {
         "ｦｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ"
     ).map(String.init)
 
+    /// What an *empty* PIN slot scrambles through. No digits: a "6"
+    /// flickering in an unfilled slot reads as a typed (and leaked)
+    /// digit. Seen in the stills, 2026-10-22.
+    static let slotScramble: [String] = Array(
+        "ｦｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ:=*+-<>"
+    ).map(String.init)
+
     static func randomScramble() -> String { scramble.randomElement() ?? "ｦ" }
+    static func randomSlotScramble() -> String { slotScramble.randomElement() ?? "ｦ" }
     static func randomMask() -> String { mask.randomElement() ?? "ｦ" }
 }
 
@@ -96,7 +104,7 @@ final class PINEntryModel {
 
     init() {
         let maxSlots = PINRules.maxLength
-        glyphs = (0..<maxSlots).map { _ in PINGlyphs.randomScramble() }
+        glyphs = (0..<maxSlots).map { _ in PINGlyphs.randomSlotScramble() }
         jitter = Array(repeating: 0, count: maxSlots)
         pulse = Array(repeating: false, count: maxSlots)
         masks = (0..<maxSlots).map { _ in PINGlyphs.randomMask() }
@@ -229,14 +237,14 @@ final class PINEntryModel {
         switch phase {
         case .error:
             for i in 0..<visibleSlots {
-                glyphs[i] = PINGlyphs.randomScramble()
+                glyphs[i] = PINGlyphs.randomSlotScramble()
                 jitter[i] = CGFloat.random(in: -5...5)
             }
         case .entry:
             // Unfilled slots scramble, each on its own irregular beat
             // so the row shimmers instead of strobing in unison.
             for i in enteredCount..<PINRules.maxLength where Bool.random() {
-                glyphs[i] = PINGlyphs.randomScramble()
+                glyphs[i] = PINGlyphs.randomSlotScramble()
             }
         case .success:
             break
@@ -318,7 +326,10 @@ struct PINSlotRow: View {
         let opacity: Double = switch model.phase {
         case .error: Double.random(in: 0.45...1.0)   // flicker
         case .success: 1.0
-        case .entry: filled ? 1.0 : (isNext ? 0.85 : 0.40)
+        // Empty slots stay well under the filled ones so progress reads
+        // at a glance even on low-contrast themes (Cobalt's mid and near
+        // trail colors are close).
+        case .entry: filled ? 1.0 : (isNext ? 0.55 : 0.28)
         }
         let glow: Color = model.phase == .entry && !filled ? palette.mid : palette.near
 
@@ -478,13 +489,21 @@ struct PINKeypadView: View {
     var body: some View {
         let palette = state.palette
         ZStack {
+            // Near-opaque across the whole keypad, feathering out only
+            // past its edges. A lighter pool let rain columns run
+            // through the digit keys (seen in the stills, 2026-10-22).
             RadialGradient(
-                colors: [.black.opacity(0.88), .black.opacity(0.70), .black.opacity(0)],
+                stops: [
+                    .init(color: .black.opacity(0.95), location: 0.00),
+                    .init(color: .black.opacity(0.90), location: 0.58),
+                    .init(color: .black.opacity(0.45), location: 0.82),
+                    .init(color: .black.opacity(0.00), location: 1.00)
+                ],
                 center: .center,
                 startRadius: 0,
-                endRadius: 460
+                endRadius: 520
             )
-            .frame(width: 940, height: 940)
+            .frame(width: 1040, height: 1040)
             .allowsHitTesting(false)
 
             VStack(spacing: 0) {
@@ -515,8 +534,8 @@ struct PINKeypadView: View {
                 } label: {
                     Text(state.systemAuthLabel)
                         .font(.system(size: 12, weight: .regular, design: .monospaced))
-                        .foregroundStyle(palette.mid)
-                        .underline(true, color: palette.mid.opacity(0.6))
+                        .foregroundStyle(palette.near.opacity(0.75))
+                        .underline(true, color: palette.near.opacity(0.4))
                         .padding(.vertical, 6)
                         .padding(.horizontal, 10)
                         .contentShape(Rectangle())
