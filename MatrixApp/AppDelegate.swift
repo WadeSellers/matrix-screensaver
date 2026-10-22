@@ -42,6 +42,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Wire up the session, status bar, idle monitor, settings, wallpaper.
         let session = MatrixSession()
         session.applySettings(settings.matrix)
+        // Read live settings at each activation, so flipping the PIN
+        // switches in Preferences applies to the very next session.
+        session.lockPolicy = { [weak self] reason in
+            self?.settings.pinLockActive(for: reason) ?? false
+        }
 
         let menuBarItem = MenuBarItem(
             onToggle: { [weak session] in
@@ -99,12 +104,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let idleMonitor = IdleMonitor(thresholdSeconds: settings.idleThresholdMinutes * 60)
         idleMonitor.isEnabled = settings.autoActivateOnIdle
         idleMonitor.onIdle = { [weak session] in
-            session?.activate()
+            session?.activate(reason: .idle)
         }
         idleMonitor.start()
         self.idleMonitor = idleMonitor
 
-        // Global hotkey: ⌃⌥⌘M from anywhere → toggle Matrix.
+        // Global hotkey: ⌃⌥⌘M from anywhere → toggle Matrix. While a
+        // PIN-locked session is up, the toggle raises the keypad
+        // instead of dismissing (see MatrixSession.requestDismiss).
         let hotKeyManager = GlobalHotKeyManager()
         hotKeyManager.onPressed = { [weak session] in
             session?.toggle()
@@ -156,6 +163,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         applyAndPersist(next)
     }
 
+    /// No quitting out from under a PIN-locked session. ⌘Q is already
+    /// swallowed by the session's key monitor and the menu bar is
+    /// hidden, but `terminate(_:)` can still arrive by other routes
+    /// (an AppleScript `quit`, a logout that slips past the disabled
+    /// session termination). The owner always has a way out — the
+    /// PIN, Touch ID / password, or locking the Mac — so refusing here
+    /// never traps anyone.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        session?.isLocked == true ? .terminateCancel : .terminateNow
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         session?.deactivate()
         idleMonitor?.stop()
@@ -172,8 +190,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard url.scheme == "fallingcode" else { continue }
             let action = url.host ?? url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
             switch action {
-            case "activate":   session?.activate()
-            case "dismiss":    session?.deactivate()
+            case "activate":   session?.activate(reason: .manual)
+            // Goes through requestDismiss, so a URL can never lift a
+            // PIN-locked session (it's silently refused).
+            case "dismiss":    session?.requestDismiss(raiseKeypadIfLocked: false)
             case "toggle":     session?.toggle()
             case "preferences": openPreferences()
 #if DEBUG

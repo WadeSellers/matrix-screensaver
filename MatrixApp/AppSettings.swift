@@ -19,12 +19,36 @@ struct AppSettings: Equatable, Sendable {
     /// the system wallpaper. Both toggles must be on.
     var lockScreenStillActive: Bool { wallpaperEnabled && lockScreenEnabled }
 
+    /// "Require PIN to dismiss." Only the switch lives here; the PIN
+    /// itself is a salted hash in the Keychain (`PINStore`). Read it
+    /// through `pinLockActive`, never on its own: "enabled but no
+    /// Keychain item" must behave as off.
+    var pinLockEnabled: Bool
+    /// "Also when I start it myself." Off by default: the PIN guards
+    /// the walk-away case (idle activation). Someone who just pressed
+    /// the hotkey on purpose usually doesn't want to type a PIN to get
+    /// back to work.
+    var pinLockAppliesToManual: Bool
+
+    /// True iff a session started for `reason` should be PIN-locked.
+    /// Hits the Keychain, so call at activation time, not per frame.
+    func pinLockActive(for reason: ActivationReason) -> Bool {
+        guard pinLockEnabled else { return false }
+        switch reason {
+        case .idle: break
+        case .manual: guard pinLockAppliesToManual else { return false }
+        }
+        return PINStore.hasPIN
+    }
+
     static let defaults = AppSettings(
         matrix: .defaults,
         autoActivateOnIdle: true,
         idleThresholdMinutes: 5,
         wallpaperEnabled: false,
-        lockScreenEnabled: false
+        lockScreenEnabled: false,
+        pinLockEnabled: false,
+        pinLockAppliesToManual: false
     )
 }
 
@@ -34,6 +58,8 @@ extension AppSettings {
         static let idleThresholdMinutes  = "matrix.idleThresholdMinutes"
         static let wallpaperEnabled      = "matrix.wallpaperEnabled"
         static let lockScreenEnabled     = "matrix.lockScreenEnabled"
+        static let pinLockEnabled        = "matrix.pinLockEnabled"
+        static let pinLockAppliesToManual = "matrix.pinLockAppliesToManual"
     }
 
     init(loadedFrom defaults: UserDefaults) {
@@ -48,6 +74,10 @@ extension AppSettings {
             ?? AppSettings.defaults.wallpaperEnabled
         self.lockScreenEnabled = (defaults.object(forKey: Key.lockScreenEnabled) as? Bool)
             ?? AppSettings.defaults.lockScreenEnabled
+        self.pinLockEnabled = (defaults.object(forKey: Key.pinLockEnabled) as? Bool)
+            ?? AppSettings.defaults.pinLockEnabled
+        self.pinLockAppliesToManual = (defaults.object(forKey: Key.pinLockAppliesToManual) as? Bool)
+            ?? AppSettings.defaults.pinLockAppliesToManual
     }
 
     func save(to defaults: UserDefaults) {
@@ -57,5 +87,7 @@ extension AppSettings {
         defaults.set(idleThresholdMinutes, forKey: Key.idleThresholdMinutes)
         defaults.set(wallpaperEnabled, forKey: Key.wallpaperEnabled)
         defaults.set(lockScreenEnabled, forKey: Key.lockScreenEnabled)
+        defaults.set(pinLockEnabled, forKey: Key.pinLockEnabled)
+        defaults.set(pinLockAppliesToManual, forKey: Key.pinLockAppliesToManual)
     }
 }
