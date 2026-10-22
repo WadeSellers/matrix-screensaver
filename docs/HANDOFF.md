@@ -8,7 +8,16 @@
 
 Last updated: 2026-10-22 (Mac Mini session — PIN lock built on a branch for 1.1)
 
-## 1.1.0 build 2 — uploaded 2026-10-22
+## 1.1.0 build 2 — SUBMITTED FOR REVIEW 2026-10-22
+
+Submitted with all three tip IAPs (4 items). Payouts go to the Capital
+One Digital Products Checking account (Paid Apps Agreement active,
+renewed 2026-10-22). App Privacy answered "no data collected"
+(feedback form is optional-disclosure exempt). One 21 s App Preview
+(rain → PIN keypad → unlock) recorded on the Mac Mini, plus the nine
+screenshots. Listing copy pasted from `docs/app-store-listing.md`.
+
+### 1.1.0 build 2 — uploaded 2026-10-22
 
 PIN to dismiss merged (PR #5). Version bumped to **1.1.0 / build 2**,
 `ITSAppUsesNonExemptEncryption: false` added. Archived and uploaded
