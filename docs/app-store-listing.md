@@ -39,7 +39,7 @@ Visible above the description, editable without resubmitting a build — good pl
 
 ---
 
-## 4. Description *(1,913 / 4,000 chars)*
+## 4. Description *(2,010 / 4,000 chars)*
 
 ```
 If you've seen green code falling down a black screen, you'll recognize this.
@@ -55,6 +55,7 @@ Falling Code brings the digital rain — inspired by the iconic 1999 cypherpunk 
 • Auto-activate on idle — full screensaver-replacement behavior, 1 to 30-minute threshold
 • Themed popover menu — left-click the icon, the menu background is itself live rain
 • Touch ID dismiss — finger-unlock lands you on a clean desktop, behind the lock screen
+• PIN to dismiss — set a code and the rain stays up until it's punched in, on a keypad that decodes out of the rain itself
 
 — SIX COLOR THEMES —
 
@@ -74,7 +75,7 @@ Click a tile in Preferences to switch. A live preview updates as you change sett
 • Mirrored katakana glyph atlas (the alien-looking characters)
 • Per-display rendering, no shared mutable state
 • fallingcode:// URL scheme for Raycast, Alfred, Stream Deck, Hammerspoon
-• Zero data collected. No network calls. No analytics.
+• No tracking. No analytics. No ads.
 
 Requires macOS 14 Sonoma or later. Apple Silicon only.
 ```
