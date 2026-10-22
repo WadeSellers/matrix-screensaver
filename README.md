@@ -11,6 +11,7 @@ Built in Swift + Metal for macOS 14+ (Sequoia / Tahoe) on Apple Silicon. Mirrore
 ## Features
 
 - **Fullscreen takeover** — covers every connected display, dismisses on any input
+- **PIN to dismiss** (optional) — a privacy curtain: the rain stays up until you punch in a 4–8 digit PIN on a themed keypad that decodes over the rain. Touch ID or your Mac password always works if you forget it
 - **Live desktop wallpaper** — animated rain behind your icons (optional)
 - **Lock-screen still** — sub-option of wallpaper; installs a per-screen still as your system wallpaper so the lock screen matches your current theme
 - **Global hotkey** — `⌃⌥⌘M` from anywhere toggles fullscreen rain without taking focus from your other apps
@@ -46,9 +47,10 @@ The first time you launch you may see "Falling Code can't be opened" — the bun
 | Toggle from anywhere | **⌃⌥⌘M** (works in any app, even fullscreen) |
 | Open Preferences | **Left-click → Preferences…** |
 | Dismiss fullscreen | Any mouse move, click, scroll, key press, gesture |
+| Dismiss with PIN lock on | Any input raises the keypad; type the PIN (top row, numpad, or click the digits). `Esc` hides it; **Use Touch ID or password** under the keypad if you forget it |
 | Dismiss to a clean desktop | Touch ID tap or `⌃⌘Q` (locks → Falling Code tears down behind the lock screen → fingerprint-unlock lands on plain desktop) |
 
-`fallingcode://` URL scheme is also wired up: `fallingcode://activate`, `fallingcode://dismiss`, `fallingcode://toggle`, `fallingcode://preferences`. Useful for Raycast, Alfred, Stream Deck, AppleScript, Hammerspoon — anything that can open a URL.
+`fallingcode://` URL scheme is also wired up: `fallingcode://activate`, `fallingcode://dismiss`, `fallingcode://toggle`, `fallingcode://preferences`. Useful for Raycast, Alfred, Stream Deck, AppleScript, Hammerspoon — anything that can open a URL. While a PIN-locked session is up, `dismiss` / `toggle` and the hotkey can't lift it (the hotkey raises the keypad).
 
 ## Configure
 
@@ -66,6 +68,9 @@ Open Preferences from the popover. The form sits over a live preview that update
 - **Toggle anywhere** — the global hotkey (display-only for now)
 - **Activate when idle** — auto-fire after the threshold
 - **Idle threshold** — 1–30 minutes
+- **Require PIN to dismiss** — turning it on opens a set-PIN sheet (4–8 digits, twice); changing or turning it off asks for the current PIN. When on, every session needs the PIN, however it started
+
+The PIN is stored as a salted PBKDF2 hash in your Keychain, never in plain text. While locked, the Dock, menu bar, app switching and Force Quit are disabled; locking the Mac (Touch ID tap or `⌃⌘Q`) still dismisses, because unlocking the Mac already proves it's you. It's a privacy curtain, not security — the Mac's own lock screen is the real lock.
 
 Settings persist in `UserDefaults`. Theme is keyed by name so reordering presets doesn't lose your selection.
 
@@ -86,7 +91,11 @@ MatrixApp (the app — produces Falling Code.app)
 │                       wallpaper manager, system wallpaper, hotkey, menu
 ├─ MatrixSession        Fullscreen activation state machine (1 window /
 │                       NSScreen, dismiss-on-input monitor, screen-lock
-│                       observer)
+│                       observer, PIN-lock chrome)
+├─ PINLockController    Keypad overlay, attempt cooldown, Touch ID path
+├─ PINKeypadView        Decode-style slot row + digit pad (SwiftUI)
+├─ PINStore             Salted PBKDF2 hash in the Keychain + attempt policy
+├─ SetPINSheet          Create / change / turn off the PIN
 ├─ MatrixWindow         Borderless screensaver-level NSWindow per display
 ├─ MatrixWallpaperWindow Borderless desktop-level NSWindow per display
 ├─ MatrixWallpaperManager Per-screen wallpaper window lifecycle

@@ -19,12 +19,26 @@ struct AppSettings: Equatable, Sendable {
     /// the system wallpaper. Both toggles must be on.
     var lockScreenStillActive: Bool { wallpaperEnabled && lockScreenEnabled }
 
+    /// "Require PIN to dismiss." Only the switch lives here; the PIN
+    /// itself is a salted hash in the Keychain (`PINStore`). Read it
+    /// through `pinLockActive`, never on its own: "enabled but no
+    /// Keychain item" must behave as off.
+    var pinLockEnabled: Bool
+
+    /// True iff a new session should be PIN-locked. Applies to every
+    /// activation (idle, hotkey, menu, URL) alike. Hits the Keychain,
+    /// so call at activation time, not per frame.
+    var pinLockActive: Bool {
+        pinLockEnabled && PINStore.hasPIN
+    }
+
     static let defaults = AppSettings(
         matrix: .defaults,
         autoActivateOnIdle: true,
         idleThresholdMinutes: 5,
         wallpaperEnabled: false,
-        lockScreenEnabled: false
+        lockScreenEnabled: false,
+        pinLockEnabled: false
     )
 }
 
@@ -34,6 +48,7 @@ extension AppSettings {
         static let idleThresholdMinutes  = "matrix.idleThresholdMinutes"
         static let wallpaperEnabled      = "matrix.wallpaperEnabled"
         static let lockScreenEnabled     = "matrix.lockScreenEnabled"
+        static let pinLockEnabled        = "matrix.pinLockEnabled"
     }
 
     init(loadedFrom defaults: UserDefaults) {
@@ -48,6 +63,8 @@ extension AppSettings {
             ?? AppSettings.defaults.wallpaperEnabled
         self.lockScreenEnabled = (defaults.object(forKey: Key.lockScreenEnabled) as? Bool)
             ?? AppSettings.defaults.lockScreenEnabled
+        self.pinLockEnabled = (defaults.object(forKey: Key.pinLockEnabled) as? Bool)
+            ?? AppSettings.defaults.pinLockEnabled
     }
 
     func save(to defaults: UserDefaults) {
@@ -57,5 +74,6 @@ extension AppSettings {
         defaults.set(idleThresholdMinutes, forKey: Key.idleThresholdMinutes)
         defaults.set(wallpaperEnabled, forKey: Key.wallpaperEnabled)
         defaults.set(lockScreenEnabled, forKey: Key.lockScreenEnabled)
+        defaults.set(pinLockEnabled, forKey: Key.pinLockEnabled)
     }
 }

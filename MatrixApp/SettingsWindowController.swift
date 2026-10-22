@@ -531,6 +531,15 @@ private struct SettingsView: View {
 private struct GeneralSettingsView: View {
     @Bindable var model: SettingsModel
 
+    /// Which Set-PIN sheet is up, if any.
+    @State private var pinSheet: SetPINMode?
+    /// Whether the Keychain holds a PIN. Cached (not read per render)
+    /// and refreshed whenever a sheet finishes.
+    @State private var hasPIN = PINStore.hasPIN
+
+    /// The switch shows on only when there's really a PIN behind it.
+    private var pinLockOn: Bool { model.settings.pinLockEnabled && hasPIN }
+
     private var appVersion: String {
         let v = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
         return v ?? "0.1"
@@ -606,6 +615,8 @@ private struct GeneralSettingsView: View {
                             .frame(width: 50, alignment: .trailing)
                     }
                 }
+
+                pinLockRows
             } header: {
                 Label("Activation", systemImage: "bolt.fill")
             }
@@ -621,7 +632,12 @@ private struct GeneralSettingsView: View {
                         .foregroundStyle(.tertiary)
                         .monospacedDigit()
                     Button("Reset to Defaults") {
-                        model.settings = .defaults
+                        // The PIN lock is exempt: turning it off takes
+                        // the current PIN, and a reset button must not
+                        // be a way around that.
+                        var fresh = AppSettings.defaults
+                        fresh.pinLockEnabled = model.settings.pinLockEnabled
+                        model.settings = fresh
                     }
                     .controlSize(.small)
                 }
@@ -632,5 +648,44 @@ private struct GeneralSettingsView: View {
         // between section cards.
         .scrollContentBackground(.hidden)
         .padding()
+        .sheet(item: $pinSheet) { mode in
+            SetPINSheet(
+                mode: mode,
+                palette: PINPalette(theme: model.settings.matrix.theme)
+            ) { completed in
+                if completed {
+                    switch mode {
+                    case .create: model.settings.pinLockEnabled = true
+                    case .disable: model.settings.pinLockEnabled = false
+                    case .change: break
+                    }
+                }
+                hasPIN = PINStore.hasPIN
+                pinSheet = nil
+            }
+        }
+    }
+
+    /// PIN-to-dismiss rows in the Activation section. The switch never
+    /// flips directly: on opens the Set-PIN sheet, off opens the
+    /// confirm-current-PIN sheet, and only a finished sheet moves it.
+    @ViewBuilder
+    private var pinLockRows: some View {
+        Toggle("Require PIN to dismiss", isOn: Binding(
+            get: { pinLockOn },
+            set: { pinSheet = $0 ? .create : .disable }
+        ))
+
+        if pinLockOn {
+            LabeledContent("PIN") {
+                Button("Change PIN…") { pinSheet = .change }
+                    .controlSize(.small)
+            }
+        }
+
+        Text("A privacy curtain for when you step away, not a lock. Your Mac's own lock screen is the real security, and Touch ID or your Mac password always gets you past a forgotten PIN.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
     }
 }
