@@ -6,9 +6,20 @@
 > **Keep it current:** whenever project state changes materially,
 > update this doc in the same commit.
 
-Last updated: 2026-10-22 (Mac Mini session — PIN lock built on a branch for 1.1)
+Last updated: 2026-11-12 (Mac Mini session — confirmed 1.1 live on the store)
 
-## 1.1.0 build 2 — SUBMITTED FOR REVIEW 2026-10-22
+## 1.1 — LIVE ON THE MAC APP STORE since 2026-10-30
+
+Approved and released 2026-10-30 ("Ready for Distribution" is Apple's
+name for live). Free, version 1.1, Apple ID `6767600495`:
+https://apps.apple.com/us/app/falling-code/id6767600495
+
+Tip jar, checked 2026-11-12: all three IAPs were approved with the app
+and show on the public store page. Still unverified: one real purchase
+from the store build (tip → Decode has never run with real money), and
+whether the Small Business Program application was approved.
+
+## 1.1.0 build 2 — submitted for review 2026-10-22
 
 Submitted with all three tip IAPs (4 items). Payouts go to the Capital
 One Digital Products Checking account (Paid Apps Agreement active,
